@@ -1,0 +1,31 @@
+<ui:composition template="template.xhtml" xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html" xmlns:f="http://xmlns.jcp.org/jsf/core" xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
+    <ui:define name="title">Editar Aula</ui:define>
+    <ui:define name="content">
+        <h1 class="page-title">Editar Datos del Aula</h1><br/>
+        <h:form>
+            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px; border: none;">
+                
+                <p:outputLabel for="numero" value="Número de Aula:" />
+                <p:inputText id="numero" value="#{controller.aulaActual.numero}" readonly="true" />
+
+                <p:outputLabel for="tipo" value="Tipo de Aula:" />
+                <p:selectOneMenu id="tipo" value="#{controller.aulaActual.tipo}" required="true">
+                    <f:selectItem itemLabel="Seleccione un tipo" itemValue="" noSelectionOption="true" />
+                    <f:selectItem itemLabel="Salón Teórico" itemValue="Salón Teórico" />
+                    <f:selectItem itemLabel="Laboratorio de Sistemas" itemValue="Laboratorio de Sistemas" />
+                    <f:selectItem itemLabel="Laboratorio de Ciencias" itemValue="Laboratorio de Ciencias" />
+                    <f:selectItem itemLabel="Auditorio" itemValue="Auditorio" />
+                </p:selectOneMenu>
+
+                <p:outputLabel for="capacidad" value="Capacidad (Estudiantes):" />
+                <p:spinner id="capacidad" value="#{controller.aulaActual.capacidad}" min="5" max="200" required="true" />
+
+            </p:panelGrid>
+            
+            <div style="margin-top: 20px;">
+                <p:commandButton value="Actualizar Aula" action="#{controller.actualizarAula()}" icon="pi pi-check" styleClass="ui-button-success" style="margin-right: 10px;" />
+                <p:button value="Cancelar" outcome="aulas" icon="pi pi-times" styleClass="ui-button-secondary" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

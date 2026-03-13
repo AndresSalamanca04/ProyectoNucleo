@@ -1,0 +1,43 @@
+<ui:composition template="template.xhtml" xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html" xmlns:f="http://xmlns.jcp.org/jsf/core" xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
+    <ui:define name="title">Inicio - Dashboard</ui:define>
+    <ui:define name="content">
+        <div style="margin-bottom: 30px;">
+            <h1 class="page-title" style="color: #2c3e50; font-weight: bold; border-bottom: 2px solid #bdc3c7; padding-bottom: 10px;">Panel de Control</h1>
+            <p class="page-subtitle" style="color: #555; font-size: 1.1rem; margin-top: 10px;">Selecciona el módulo al que deseas ingresar para administrar la información académica.</p>
+        </div>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <p:card styleClass="dashboard-card" style="width: 22rem;" onclick="window.location.href='docentes.xhtml'">
+                <f:facet name="title">
+                    <span style="color: #27ae60; font-weight: bold;">Docentes</span>
+                    <i class="pi pi-arrow-circle-right" style="float: right; color: #27ae60; font-size: 1.5rem; margin-top: 5px;"></i>
+                </f:facet>
+                <p style="color: #333; line-height: 1.5;">Ingresa y administra la información de los profesores, sus departamentos y disponibilidad.</p>
+            </p:card>
+
+            <p:card styleClass="dashboard-card" style="width: 22rem;" onclick="window.location.href='cursos.xhtml'">
+                <f:facet name="title">
+                    <span style="color: #8e44ad; font-weight: bold;">Cursos</span>
+                    <i class="pi pi-arrow-circle-right" style="float: right; color: #8e44ad; font-size: 1.5rem; margin-top: 5px;"></i>
+                </f:facet>
+                <p style="color: #333; line-height: 1.5;">Consulta, registra y edita las materias ofertadas, junto con su número de créditos.</p>
+            </p:card>
+
+            <p:card styleClass="dashboard-card" style="width: 22rem;" onclick="window.location.href='aulas.xhtml'">
+                <f:facet name="title">
+                    <span style="color: #2980b9; font-weight: bold;">Aulas Físicas</span>
+                    <i class="pi pi-arrow-circle-right" style="float: right; color: #2980b9; font-size: 1.5rem; margin-top: 5px;"></i>
+                </f:facet>
+                <p style="color: #333; line-height: 1.5;">Gestiona los espacios de la universidad, tipos de salón y capacidades de estudiantes.</p>
+            </p:card>
+
+            <p:card styleClass="dashboard-card" style="width: 22rem;" onclick="window.location.href='horario.xhtml'">
+                <f:facet name="title">
+                    <span style="color: #e67e22; font-weight: bold;">Horarios</span>
+                    <i class="pi pi-arrow-circle-right" style="float: right; color: #e67e22; font-size: 1.5rem; margin-top: 5px;"></i>
+                </f:facet>
+                <p style="color: #333; line-height: 1.5;">Planifica y organiza la asignación de docentes, cursos y aulas por franja horaria.</p>
+            </p:card>
+        </div>
+    </ui:define>
+</ui:composition>
