@@ -1,0 +1,137 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    background-color: #ffffff;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    background-color: #1a252f; /* Azul oscuro */
+    color: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar h2 {
+    padding: 20px;
+    font-size: 1.5rem;
+    font-weight: 600;
+    border-bottom: 1px solid #2c3e50;
+    margin-bottom: 10px;
+}
+
+.sidebar a {
+    color: white;
+    text-decoration: none;
+    padding: 15px 20px;
+    display: block;
+    font-size: 1rem;
+    transition: background 0.3s;
+}
+
+.sidebar a:hover, .sidebar a.active {
+    background-color: #34495e; /* Azul más claro para el hover/activo */
+    border-left: 4px solid #3498db;
+}
+
+/* Main Content */
+.main-content {
+    flex-grow: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.page-title {
+    color: #2980b9; /* Azul del título */
+    font-size: 2rem;
+    margin-bottom: 5px;
+}
+
+.page-subtitle {
+    color: #7f8c8d;
+    font-size: 1rem;
+}
+
+/* Botón Verde */
+.btn-success {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-success:hover {
+    background-color: #2ecc71;
+}
+
+/* Tabla */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.data-table th, .data-table td {
+    border: 1px solid #bdc3c7;
+    padding: 12px 15px;
+    text-align: left;
+}
+
+.data-table th {
+    background-color: #f8f9f9;
+    color: #555;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+.data-table tr:hover {
+    background-color: #f4f6f7;
+}
+
+.action-links a {
+    color: #34495e;
+    text-decoration: none;
+    margin: 0 5px;
+}
+
+.action-links a:hover {
+    text-decoration: underline;
+}
+
+/* Formularios */
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+.form-control {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}

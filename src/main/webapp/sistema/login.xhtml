@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://xmlns.jcp.org/jsf/html"
+      xmlns:p="http://primefaces.org/ui">
+<h:head>
+    <title>Login - Universidad</title>
+    <style>
+        body { 
+            background: url("#{resource['images/interfaz_1.jpg']}") no-repeat center center fixed !important;
+            background-size: cover !important;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .login-panel { 
+            width: 400px; 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4); 
+            border: none;
+            background-color: rgba(255, 255, 255, 0.9) !important; 
+            border-radius: 12px;
+        }
+        
+        .ui-panel-titlebar {
+            background-color: rgba(44, 62, 80, 0.95) !important;
+            color: white !important;
+            text-align: center;
+            font-size: 1.2rem;
+            padding: 15px !important;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            border: none !important;
+        }
+        
+        .ui-panel-content {
+            background: transparent !important;
+            border: none !important;
+        }
+    </style>
+</h:head>
+<h:body>
+    <p:panel header="Acceso al Sistema" styleClass="login-panel">
+        <h:form>
+            
+            <p:growl id="mensajes" showDetail="true" life="4000" />
+
+            <h:panelGrid columns="1" style="width: 100%; padding: 15px 10px;">
+                
+                <p:outputLabel for="usuario" value="Usuario:" style="font-weight: bold; color: #34495e;" />
+                <p:inputText id="usuario" value="#{controller.usuario}" style="width: 100%; margin-bottom: 15px;" placeholder="Ingresa tu usuario" required="true" requiredMessage="El usuario es obligatorio" />
+
+                <p:outputLabel for="clave" value="Contraseña:" style="font-weight: bold; color: #34495e;" />
+                <p:password id="clave" value="#{controller.clave}" style="width: 100%; margin-bottom: 25px;" placeholder="Ingresa tu contraseña" required="true" requiredMessage="La contraseña es obligatoria" toggleMask="true" />
+
+                <p:commandButton value="Ingresar" action="#{controller.login()}" 
+                                 ajax="false"
+                                 icon="pi pi-sign-in" 
+                                 styleClass="ui-button-success" 
+                                 style="width: 100%; padding: 10px; font-size: 1.1rem; border-radius: 6px;" />
+                                 
+            </h:panelGrid>
+        </h:form>
+    </p:panel>
+</h:body>
+</html>

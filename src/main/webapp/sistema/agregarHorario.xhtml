@@ -1,0 +1,39 @@
+<ui:composition template="template.xhtml" xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html" xmlns:f="http://xmlns.jcp.org/jsf/core" xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
+    <ui:define name="title">Añadir Horario</ui:define>
+    <ui:define name="content">
+        <h1 class="page-title">Asignar Nuevo Horario</h1><br/>
+        <h:form>
+            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px; border: none;">
+                
+                <p:outputLabel for="dia" value="Día de la Semana:" />
+                <p:selectOneMenu id="dia" value="#{controller.horarioActual.dia}" required="true">
+                    <f:selectItem itemLabel="Seleccione el día" itemValue="" noSelectionOption="true" />
+                    <f:selectItem itemLabel="Lunes" itemValue="Lunes" />
+                    <f:selectItem itemLabel="Martes" itemValue="Martes" />
+                    <f:selectItem itemLabel="Miércoles" itemValue="Miércoles" />
+                    <f:selectItem itemLabel="Jueves" itemValue="Jueves" />
+                    <f:selectItem itemLabel="Viernes" itemValue="Viernes" />
+                    <f:selectItem itemLabel="Sábado" itemValue="Sábado" />
+                </p:selectOneMenu>
+
+                <p:outputLabel for="hora" value="Franja Horaria:" />
+                <p:inputText id="hora" value="#{controller.horarioActual.hora}" placeholder="Ej: 08:00 - 10:00" required="true" />
+
+                <p:outputLabel for="docente" value="Docente Asignado:" />
+                <p:inputText id="docente" value="#{controller.horarioActual.docente}" placeholder="Nombre del docente" required="true" />
+
+                <p:outputLabel for="curso" value="Curso (Materia):" />
+                <p:inputText id="curso" value="#{controller.horarioActual.curso}" placeholder="Nombre del curso" required="true" />
+
+                <p:outputLabel for="aula" value="Aula Asignada:" />
+                <p:inputText id="aula" value="#{controller.horarioActual.aula}" placeholder="Ej: A-101" required="true" />
+
+            </p:panelGrid>
+            
+            <div style="margin-top: 20px;">
+                <p:commandButton value="Guardar Horario" action="#{controller.guardarHorario()}" icon="pi pi-save" styleClass="ui-button-success" style="margin-right: 10px;" />
+                <p:button value="Cancelar" outcome="horario" icon="pi pi-times" styleClass="ui-button-secondary" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>
