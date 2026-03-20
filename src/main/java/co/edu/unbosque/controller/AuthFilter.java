@@ -24,8 +24,7 @@ public class AuthFilter implements Filter {
         
         String path = req.getRequestURI().substring(req.getContextPath().length());
 
-        // 1. REGLAS DE EXCEPCIÓN (Cosas que SIEMPRE pueden pasar sin login)
-        // Permitimos el login, los recursos (imágenes/css) y las peticiones internas de JSF
+
         if (path.contains("/login.xhtml") || 
             path.contains("/jakarta.faces.resource") || 
             path.contains("/javax.faces.resource")) {
