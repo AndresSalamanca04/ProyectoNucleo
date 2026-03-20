@@ -1,17 +1,17 @@
 <ui:composition template="template.xhtml" xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html" xmlns:f="http://xmlns.jcp.org/jsf/core" xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
     <ui:define name="title">Editar Docente</ui:define>
     <ui:define name="content">
-        <h1 class="page-title">Editar Datos del Docente</h1><br/>
+        <h1 class="page-title" style="color: #2980b9;">Editar Datos del Docente</h1><br/>
         <h:form>
-            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px; border: none;">
+            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px; border: none; background: transparent;">
                 
-                <p:outputLabel for="nombre" value="Nombre Completo:" />
+                <p:outputLabel for="nombre" value="Nombre Completo:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:inputText id="nombre" value="#{controller.docenteActual.nombre}" required="true" />
 
-                <p:outputLabel for="correo" value="Correo Institucional:" />
-                <p:inputText id="correo" value="#{controller.docenteActual.correo}" required="true" />
+                <p:outputLabel for="correo" value="Correo Institucional:" style="font-weight: bold; color: #2c3e50;"/>
+                <p:inputText id="correo" value="#{controller.docenteActual.correo}" readonly="true" style="background-color: #f4f6f7;" />
 
-                <p:outputLabel for="tipo" value="Tipo de Contrato:" />
+                <p:outputLabel for="tipo" value="Tipo de Contrato:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:selectOneMenu id="tipo" value="#{controller.docenteActual.tipo}" required="true">
                     <f:selectItem itemLabel="Seleccione un tipo" itemValue="" noSelectionOption="true" />
                     <f:selectItem itemLabel="Tiempo Completo" itemValue="Tiempo Completo" />
@@ -19,10 +19,10 @@
                     <f:selectItem itemLabel="Cátedra" itemValue="Cátedra" />
                 </p:selectOneMenu>
 
-                <p:outputLabel for="departamento" value="Departamento:" />
+                <p:outputLabel for="departamento" value="Departamento:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:inputText id="departamento" value="#{controller.docenteActual.departamento}" required="true" />
 
-                <p:outputLabel for="disponibilidad" value="Disponibilidad:" />
+                <p:outputLabel for="disponibilidad" value="Disponibilidad:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:selectOneMenu id="disponibilidad" value="#{controller.docenteActual.disponibilidad}" required="true">
                     <f:selectItem itemLabel="Seleccione disponibilidad" itemValue="" noSelectionOption="true" />
                     <f:selectItem itemLabel="Disponible" itemValue="Disponible" />

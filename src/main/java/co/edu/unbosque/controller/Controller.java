@@ -1,16 +1,13 @@
 package co.edu.unbosque.controller;
 
-import co.edu.unbosque.model.Aula;
-import co.edu.unbosque.model.Curso;
-import co.edu.unbosque.model.Docente;
-import co.edu.unbosque.model.Horario;
-
+import co.edu.unbosque.model.*;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.SessionScoped;
 import jakarta.inject.Named;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import java.io.*;
+import java.io.Serializable;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,9 +16,11 @@ import java.util.List;
 public class Controller implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    
-    // Ruta donde se guardará el archivo en tu computadora (Carpeta de Usuario)
-    private final String RUTA_ARCHIVO = System.getProperty("user.home") + "/datos_universidad.dat";
+
+    // --- CONFIGURACIÓN DE BASE DE DATOS ---
+    private final String URL = "jdbc:mariadb://localhost:3306/SistemaAcademico";
+    private final String USER = "root";
+    private final String PASS = "admin";
 
     // --- VARIABLES DE LOGIN ---
     private String usuario;
@@ -32,138 +31,263 @@ public class Controller implements Serializable {
     private List<Curso> listaCursos;
     private List<Aula> listaAulas;
     private List<Horario> listaHorarios;
+    private List<Estudiante> listaEstudiantes;
 
     // --- OBJETOS ACTUALES ---
-    private Docente docenteActual;
-    private Curso cursoActual;
-    private Aula aulaActual;
-    private Horario horarioActual;
+    private Docente docenteActual = new Docente();
+    private Curso cursoActual = new Curso();
+    private Aula aulaActual = new Aula();
+    private Horario horarioActual = new Horario();
+    private Estudiante estudianteActual = new Estudiante();
+
+    // --- VARIABLES PARA INSCRIPCIÓN ---
+    private String estudianteSeleccionadoId;
+    private int horarioSeleccionadoId;
 
     @PostConstruct
     public void init() {
-        cargarDatosDeArchivo();
-        docenteActual = new Docente();
-        cursoActual = new Curso();
-        aulaActual = new Aula();
-        horarioActual = new Horario();
+        actualizarTodasLasListas();
     }
 
-    // ==========================================
-    //          PERSISTENCIA DE DATOS
-    // ==========================================
-    private void guardarDatosEnArchivo() {
-        try (FileOutputStream fos = new FileOutputStream(RUTA_ARCHIVO);
-             ObjectOutputStream oos = new ObjectOutputStream(fos)) {
-            Object[] datos = {listaDocentes, listaCursos, listaAulas, listaHorarios};
-            oos.writeObject(datos);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private Connection getConnection() throws Exception {
+        Class.forName("org.mariadb.jdbc.Driver");
+        return DriverManager.getConnection(URL, USER, PASS);
     }
 
-    @SuppressWarnings("unchecked")
-    private void cargarDatosDeArchivo() {
-        File archivo = new File(RUTA_ARCHIVO);
-        if (archivo.exists()) {
-            try (FileInputStream fis = new FileInputStream(archivo);
-                 ObjectInputStream ois = new ObjectInputStream(fis)) {
-                Object[] datos = (Object[]) ois.readObject();
-                listaDocentes = (List<Docente>) datos[0];
-                listaCursos = (List<Curso>) datos[1];
-                listaAulas = (List<Aula>) datos[2];
-                listaHorarios = (List<Horario>) datos[3];
-            } catch (Exception e) {
-                e.printStackTrace();
-                inicializarListasVacias();
-            }
-        } else {
-            inicializarListasVacias();
-        }
+    public void actualizarTodasLasListas() {
+        cargarDocentes(); 
+        cargarCursos(); 
+        cargarAulas(); 
+        cargarHorarios(); 
+        cargarEstudiantes();
     }
 
-    private void inicializarListasVacias() {
-        listaDocentes = new ArrayList<>();
-        listaCursos = new ArrayList<>();
-        listaAulas = new ArrayList<>();
-        listaHorarios = new ArrayList<>();
-    }
-
-    // ==========================================
-    //          MÉTODO DE LOGIN Y LOGOUT
-    // ==========================================
+    // LOGIN Y LOGOUT
     public String login() {
         if ("admin".equals(usuario) && "123".equals(clave)) {
-            // Creamos la "credencial" en el mapa de sesión para el AuthFilter
             FacesContext.getCurrentInstance().getExternalContext().getSessionMap().put("usuarioLogueado", true);
-            // Redirección con ruta completa para evitar bloqueos del filtro
             return "/sistema/inicio?faces-redirect=true";
-        } else {
-            FacesContext.getCurrentInstance().addMessage(null, 
-                new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error", "Usuario o contraseña incorrectos."));
-            return null; 
         }
+        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error", "Credenciales incorrectas."));
+        return null; 
     }
 
     public String cerrarSesion() {
-        // Invalidamos la sesión por completo (elimina la credencial)
         FacesContext.getCurrentInstance().getExternalContext().invalidateSession();
-        // Limpiamos variables de login por seguridad
-        this.usuario = null;
-        this.clave = null;
         return "/sistema/login?faces-redirect=true";
     }
 
-    // ==========================================
-    //          MÉTODOS PARA DOCENTES
-    // ==========================================
-    public String irAgregarDocente() { this.docenteActual = new Docente(); return "agregarDocentes?faces-redirect=true"; }
-    public String guardarDocente() { 
-        this.listaDocentes.add(docenteActual); 
-        guardarDatosEnArchivo(); 
-        return "docentes?faces-redirect=true"; 
+    // REGLAS DE NEGOCIO: INSCRIPCIONES
+    public String inscribirMateria() {
+        try {
+            String codigoCurso = "";
+            try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("SELECT curso FROM horarios WHERE id = ?")) {
+                ps.setInt(1, horarioSeleccionadoId);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) codigoCurso = rs.getString(1);
+            }
+
+            if (!validarAforo(horarioSeleccionadoId)) {
+                FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Aforo Lleno", "El aula asignada no tiene más capacidad."));
+                return null;
+            }
+
+            if (!validarPrerrequisitos(estudianteSeleccionadoId, codigoCurso)) {
+                FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Prerrequisitos pendientes", "El estudiante no ha aprobado las materias previas requeridas."));
+                return null;
+            }
+
+            if (!validarCargaAcademica(estudianteSeleccionadoId, codigoCurso)) {
+                FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Carga Excedida", "Inscribir esta materia supera los 18 créditos permitidos."));
+                return null;
+            }
+
+            try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("INSERT INTO inscripciones (documento_estudiante, id_horario) VALUES (?, ?)")) {
+                ps.setString(1, estudianteSeleccionadoId);
+                ps.setInt(2, horarioSeleccionadoId);
+                ps.executeUpdate();
+            }
+
+            try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE estudiantes SET creditos_matriculados = creditos_matriculados + (SELECT creditos FROM cursos WHERE codigo = ?) WHERE documento = ?")) {
+                ps.setString(1, codigoCurso);
+                ps.setString(2, estudianteSeleccionadoId);
+                ps.executeUpdate();
+            }
+
+            cargarEstudiantes(); 
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Inscripción Exitosa", "Estudiante matriculado cumpliendo todas las reglas."));
+            return "estudiantes?faces-redirect=true";
+
+        } catch (Exception e) { return manejarError(e); }
     }
-    public String editarDocente(Docente d) { this.docenteActual = d; return "editarDocentes?faces-redirect=true"; }
-    public String actualizarDocente() { guardarDatosEnArchivo(); return "docentes?faces-redirect=true"; }
-    public void borrarDocente(Docente d) { this.listaDocentes.remove(d); guardarDatosEnArchivo(); }
 
-    // ==========================================
-    //          MÉTODOS PARA CURSOS
-    // ==========================================
-    public String irAgregarCurso() { this.cursoActual = new Curso(); return "agregarCursos?faces-redirect=true"; }
-    public String guardarCurso() { this.listaCursos.add(cursoActual); guardarDatosEnArchivo(); return "cursos?faces-redirect=true"; }
-    public String editarCurso(Curso c) { this.cursoActual = c; return "editarCursos?faces-redirect=true"; }
-    public String actualizarCurso() { guardarDatosEnArchivo(); return "cursos?faces-redirect=true"; }
-    public void borrarCurso(Curso c) { this.listaCursos.remove(c); guardarDatosEnArchivo(); }
+    private boolean validarAforo(int idHorario) throws Exception {
+        int capacidad = 0; int inscritos = 0;
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT a.capacidad FROM horarios h JOIN aulas a ON h.aula = a.numero WHERE h.id = ?")) {
+            ps.setInt(1, idHorario); ResultSet rs = ps.executeQuery();
+            if (rs.next()) capacidad = rs.getInt(1);
+        }
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM inscripciones WHERE id_horario = ?")) {
+            ps.setInt(1, idHorario); ResultSet rs = ps.executeQuery();
+            if (rs.next()) inscritos = rs.getInt(1);
+        }
+        return inscritos < capacidad;
+    }
 
-    // ==========================================
-    //          MÉTODOS PARA AULAS
-    // ==========================================
-    public String irAgregarAula() { this.aulaActual = new Aula(); return "agregarAulas?faces-redirect=true"; }
-    public String guardarAula() { this.listaAulas.add(aulaActual); guardarDatosEnArchivo(); return "aulas?faces-redirect=true"; }
-    public String editarAula(Aula a) { this.aulaActual = a; return "editarAulas?faces-redirect=true"; }
-    public String actualizarAula() { guardarDatosEnArchivo(); return "aulas?faces-redirect=true"; }
-    public void borrarAula(Aula a) { this.listaAulas.remove(a); guardarDatosEnArchivo(); }
+    private boolean validarPrerrequisitos(String documento, String codigoCurso) throws Exception {
+        List<String> requisitos = new ArrayList<>();
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT codigo_requerido FROM prerrequisitos WHERE codigo_curso = ?")) {
+            ps.setString(1, codigoCurso); ResultSet rs = ps.executeQuery();
+            while (rs.next()) requisitos.add(rs.getString(1));
+        }
+        if (requisitos.isEmpty()) return true;
 
-    // ==========================================
-    //          MÉTODOS PARA HORARIOS
-    // ==========================================
-    public String irAgregarHorario() { this.horarioActual = new Horario(); return "anadirHorario?faces-redirect=true"; }
-    public String guardarHorario() { this.listaHorarios.add(horarioActual); guardarDatosEnArchivo(); return "horario?faces-redirect=true"; }
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT aprobado FROM historial_academico WHERE documento_estudiante = ? AND codigo_curso = ?")) {
+            for (String req : requisitos) {
+                ps.setString(1, documento); ps.setString(2, req);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next() || !rs.getBoolean(1)) return false; 
+            }
+        }
+        return true;
+    }
+
+    private boolean validarCargaAcademica(String documento, String codigoCurso) throws Exception {
+        int creditosCurso = 0; int creditosActuales = 0; int maxCreditos = 18;
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT creditos FROM cursos WHERE codigo = ?")) {
+            ps.setString(1, codigoCurso); ResultSet rs = ps.executeQuery();
+            if (rs.next()) creditosCurso = rs.getInt(1);
+        }
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT creditos_matriculados FROM estudiantes WHERE documento = ?")) {
+            ps.setString(1, documento); ResultSet rs = ps.executeQuery();
+            if (rs.next()) creditosActuales = rs.getInt(1);
+        }
+        return (creditosActuales + creditosCurso) <= maxCreditos;
+    }
+
+    private boolean existeCruce(String columna, String valor, String dia, String hora) {
+        String sql = "SELECT COUNT(*) FROM horarios WHERE " + columna + " = ? AND dia = ? AND hora = ?";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, valor); ps.setString(2, dia); ps.setString(3, hora);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1) > 0;
+        } catch (Exception e) { e.printStackTrace(); }
+        return false;
+    }
+
+    // CRUD HORARIOS
+    public void cargarHorarios() {
+        listaHorarios = new ArrayList<>();
+        try (Connection conn = getConnection(); Statement st = conn.createStatement(); ResultSet rs = st.executeQuery("SELECT * FROM horarios")) {
+            while (rs.next()) listaHorarios.add(new Horario(rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), rs.getString("docente"), rs.getString("curso"), rs.getString("aula")));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public String guardarHorario() {
+        if (existeCruce("docente", horarioActual.getDocente(), horarioActual.getDia(), horarioActual.getHora())) {
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Cruce Docente", "El docente ya está ocupado en ese horario.")); return null;
+        }
+        if (existeCruce("aula", horarioActual.getAula(), horarioActual.getDia(), horarioActual.getHora())) {
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Cruce Aula", "El aula ya está reservada en ese horario.")); return null;
+        }
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("INSERT INTO horarios (dia, hora, docente, curso, aula) VALUES (?, ?, ?, ?, ?)")) {
+            ps.setString(1, horarioActual.getDia()); ps.setString(2, horarioActual.getHora()); ps.setString(3, horarioActual.getDocente()); ps.setString(4, horarioActual.getCurso()); ps.setString(5, horarioActual.getAula());
+            ps.executeUpdate(); cargarHorarios(); return "horario?faces-redirect=true";
+        } catch (Exception e) { return manejarError(e); }
+    }
+
     public String editarHorario(Horario h) { this.horarioActual = h; return "editarHorario?faces-redirect=true"; }
-    public String actualizarHorario() { guardarDatosEnArchivo(); return "horario?faces-redirect=true"; }
-    public void borrarHorario(Horario h) { this.listaHorarios.remove(h); guardarDatosEnArchivo(); }
 
-    // ==========================================
-    //          GETTERS Y SETTERS
-    // ==========================================
-    public String getUsuario() { return usuario; } public void setUsuario(String usuario) { this.usuario = usuario; }
-    public String getClave() { return clave; } public void setClave(String clave) { this.clave = clave; }
-    public List<Docente> getListaDocentes() { return listaDocentes; } public void setListaDocentes(List<Docente> listaDocentes) { this.listaDocentes = listaDocentes; }
-    public List<Curso> getListaCursos() { return listaCursos; } public void setListaCursos(List<Curso> listaCursos) { this.listaCursos = listaCursos; }
-    public List<Aula> getListaAulas() { return listaAulas; } public void setListaAulas(List<Aula> listaAulas) { this.listaAulas = listaAulas; }
-    public List<Horario> getListaHorarios() { return listaHorarios; } public void setListaHorarios(List<Horario> listaHorarios) { this.listaHorarios = listaHorarios; }
-    public Docente getDocenteActual() { return docenteActual; } public void setDocenteActual(Docente docenteActual) { this.docenteActual = docenteActual; }
-    public Curso getCursoActual() { return cursoActual; } public void setCursoActual(Curso cursoActual) { this.cursoActual = cursoActual; }
-    public Aula getAulaActual() { return aulaActual; } public void setAulaActual(Aula aulaActual) { this.aulaActual = aulaActual; }
-    public Horario getHorarioActual() { return horarioActual; } public void setHorarioActual(Horario horarioActual) { this.horarioActual = horarioActual; }
+    public String actualizarHorario() {
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE horarios SET docente=?, curso=? WHERE dia=? AND hora=? AND aula=?")) {
+            ps.setString(1, horarioActual.getDocente()); ps.setString(2, horarioActual.getCurso());
+            ps.setString(3, horarioActual.getDia()); ps.setString(4, horarioActual.getHora()); ps.setString(5, horarioActual.getAula());
+            ps.executeUpdate(); cargarHorarios();
+            return "horario?faces-redirect=true";
+        } catch (Exception e) { return manejarError(e); }
+    }
+
+    public void borrarHorario(Horario h) {
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("DELETE FROM horarios WHERE dia=? AND hora=? AND aula=?")) {
+            ps.setString(1, h.getDia()); ps.setString(2, h.getHora()); ps.setString(3, h.getAula());
+            ps.executeUpdate(); cargarHorarios();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    // CRUD DOCENTES
+    public void cargarDocentes() {
+        listaDocentes = new ArrayList<>();
+        try (Connection c = getConnection(); Statement s = c.createStatement(); ResultSet r = s.executeQuery("SELECT * FROM docentes")) {
+            while (r.next()) listaDocentes.add(new Docente(r.getString("nombre"), r.getString("correo"), r.getString("tipo"), r.getString("departamento"), r.getString("disponibilidad")));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+    public String guardarDocente() { try (Connection c = getConnection(); PreparedStatement p = c.prepareStatement("INSERT INTO docentes VALUES (?,?,?,?,?)")) { p.setString(1, docenteActual.getNombre()); p.setString(2, docenteActual.getCorreo()); p.setString(3, docenteActual.getTipo()); p.setString(4, docenteActual.getDepartamento()); p.setString(5, docenteActual.getDisponibilidad()); p.executeUpdate(); cargarDocentes(); return "docentes?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public String editarDocente(Docente d) { this.docenteActual = d; return "editarDocentes?faces-redirect=true"; }
+    public String actualizarDocente() { try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE docentes SET nombre=?, tipo=?, departamento=?, disponibilidad=? WHERE correo=?")) { ps.setString(1, docenteActual.getNombre()); ps.setString(2, docenteActual.getTipo()); ps.setString(3, docenteActual.getDepartamento()); ps.setString(4, docenteActual.getDisponibilidad()); ps.setString(5, docenteActual.getCorreo()); ps.executeUpdate(); cargarDocentes(); return "docentes?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public void borrarDocente(Docente d) { try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("DELETE FROM docentes WHERE correo=?")) { ps.setString(1, d.getCorreo()); ps.executeUpdate(); cargarDocentes(); } catch (Exception e) { e.printStackTrace(); } }
+
+    // CRUD CURSOS
+    public void cargarCursos() {
+        listaCursos = new ArrayList<>();
+        try (Connection c = getConnection(); Statement s = c.createStatement(); ResultSet r = s.executeQuery("SELECT * FROM cursos")) {
+            while (r.next()) listaCursos.add(new Curso(r.getString("codigo"), r.getString("nombre"), r.getInt("creditos")));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+    public String guardarCurso() { try (Connection c = getConnection(); PreparedStatement p = c.prepareStatement("INSERT INTO cursos (codigo, nombre, creditos) VALUES (?, ?, ?)")) { p.setString(1, cursoActual.getCodigo()); p.setString(2, cursoActual.getNombre()); p.setInt(3, cursoActual.getCreditos()); p.executeUpdate(); cargarCursos(); return "cursos?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public String editarCurso(Curso c) { this.cursoActual = c; return "editarCursos?faces-redirect=true"; }
+    public String actualizarCurso() { try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE cursos SET nombre=?, creditos=? WHERE codigo=?")) { ps.setString(1, cursoActual.getNombre()); ps.setInt(2, cursoActual.getCreditos()); ps.setString(3, cursoActual.getCodigo()); ps.executeUpdate(); cargarCursos(); return "cursos?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public void borrarCurso(Curso c) { try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("DELETE FROM cursos WHERE codigo=?")) { ps.setString(1, c.getCodigo()); ps.executeUpdate(); cargarCursos(); } catch (Exception e) { e.printStackTrace(); } }
+
+    // CRUD AULAS
+    public void cargarAulas() {
+        listaAulas = new ArrayList<>();
+        try (Connection c = getConnection(); Statement s = c.createStatement(); ResultSet r = s.executeQuery("SELECT * FROM aulas")) {
+            while (r.next()) listaAulas.add(new Aula(r.getString("numero"), r.getString("tipo"), r.getInt("capacidad")));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+    public String guardarAula() { try (Connection c = getConnection(); PreparedStatement p = c.prepareStatement("INSERT INTO aulas (numero, tipo, capacidad) VALUES (?, ?, ?)")) { p.setString(1, aulaActual.getNumero()); p.setString(2, aulaActual.getTipo()); p.setInt(3, aulaActual.getCapacidad()); p.executeUpdate(); cargarAulas(); return "aulas?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public String editarAula(Aula a) { this.aulaActual = a; return "editarAulas?faces-redirect=true"; }
+    public String actualizarAula() { try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE aulas SET tipo=?, capacidad=? WHERE numero=?")) { ps.setString(1, aulaActual.getTipo()); ps.setInt(2, aulaActual.getCapacidad()); ps.setString(3, aulaActual.getNumero()); ps.executeUpdate(); cargarAulas(); return "aulas?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public void borrarAula(Aula a) { try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("DELETE FROM aulas WHERE numero=?")) { ps.setString(1, a.getNumero()); ps.executeUpdate(); cargarAulas(); } catch (Exception e) { e.printStackTrace(); } }
+
+    // CRUD ESTUDIANTES
+    public void cargarEstudiantes() {
+        listaEstudiantes = new ArrayList<>();
+        try (Connection c = getConnection(); Statement s = c.createStatement(); ResultSet r = s.executeQuery("SELECT * FROM estudiantes")) {
+            while (r.next()) listaEstudiantes.add(new Estudiante(r.getString("documento"), r.getString("nombre"), r.getString("carrera"), r.getInt("semestre_actual"), r.getInt("creditos_matriculados")));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+    public String guardarEstudiante() { try (Connection c = getConnection(); PreparedStatement p = c.prepareStatement("INSERT INTO estudiantes (documento, nombre, carrera, semestre_actual, creditos_matriculados) VALUES (?,?,?,?,0)")) { p.setString(1, estudianteActual.getDocumento()); p.setString(2, estudianteActual.getNombre()); p.setString(3, estudianteActual.getCarrera()); p.setInt(4, estudianteActual.getSemestreActual()); p.executeUpdate(); cargarEstudiantes(); return "estudiantes?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public String editarEstudiante(Estudiante e) { this.estudianteActual = e; return "editarEstudiantes?faces-redirect=true"; }
+    public String actualizarEstudiante() { try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE estudiantes SET nombre=?, carrera=?, semestre_actual=? WHERE documento=?")) { ps.setString(1, estudianteActual.getNombre()); ps.setString(2, estudianteActual.getCarrera()); ps.setInt(3, estudianteActual.getSemestreActual()); ps.setString(4, estudianteActual.getDocumento()); ps.executeUpdate(); cargarEstudiantes(); return "estudiantes?faces-redirect=true"; } catch (Exception e) { return manejarError(e); } }
+    public void borrarEstudiante(Estudiante e) { 
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("DELETE FROM estudiantes WHERE documento=?")) { 
+            ps.setString(1, e.getDocumento()); ps.executeUpdate(); cargarEstudiantes(); 
+        } catch (Exception ex) { 
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error", "No se puede borrar el estudiante porque tiene materias inscritas o historial.")); 
+        } 
+    }
+
+    // MÉTODOS AUXILIARES Y NAVEGACIÓN
+    private String manejarError(Exception e) { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error BD", e.getMessage())); return null; }
+    public String irAgregarDocente() { this.docenteActual = new Docente(); return "agregarDocentes?faces-redirect=true"; }
+    public String irAgregarCurso() { this.cursoActual = new Curso(); return "agregarCursos?faces-redirect=true"; }
+    public String irAgregarAula() { this.aulaActual = new Aula(); return "agregarAulas?faces-redirect=true"; }
+    
+    // AQUÍ ESTÁ LA CORRECCIÓN CLAVE:
+    public String irAgregarHorario() { this.horarioActual = new Horario(); return "agregarHorario?faces-redirect=true"; }
+
+    // GETTERS Y SETTERS
+    public String getUsuario() { return usuario; } public void setUsuario(String u) { this.usuario = u; }
+    public String getClave() { return clave; } public void setClave(String c) { this.clave = c; }
+    public List<Docente> getListaDocentes() { return listaDocentes; } public List<Curso> getListaCursos() { return listaCursos; }
+    public List<Aula> getListaAulas() { return listaAulas; } public List<Horario> getListaHorarios() { return listaHorarios; }
+    public List<Estudiante> getListaEstudiantes() { return listaEstudiantes; } 
+    public Docente getDocenteActual() { return docenteActual; } public void setDocenteActual(Docente d) { this.docenteActual = d; }
+    public Curso getCursoActual() { return cursoActual; } public void setCursoActual(Curso c) { this.cursoActual = c; }
+    public Aula getAulaActual() { return aulaActual; } public void setAulaActual(Aula a) { this.aulaActual = a; }
+    public Horario getHorarioActual() { return horarioActual; } public void setHorarioActual(Horario h) { this.horarioActual = h; }
+    public Estudiante getEstudianteActual() { return estudianteActual; } public void setEstudianteActual(Estudiante e) { this.estudianteActual = e; }
+    public String getEstudianteSeleccionadoId() { return estudianteSeleccionadoId; } public void setEstudianteSeleccionadoId(String e) { this.estudianteSeleccionadoId = e; }
+    public int getHorarioSeleccionadoId() { return horarioSeleccionadoId; } public void setHorarioSeleccionadoId(int h) { this.horarioSeleccionadoId = h; }
 }

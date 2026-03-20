@@ -1,16 +1,17 @@
 <ui:composition template="template.xhtml" xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html" xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
     <ui:define name="title">Editar Curso</ui:define>
     <ui:define name="content">
-        <h1 class="page-title">Editar Datos del Curso</h1><br/>
+        <h1 class="page-title" style="color: #2980b9;">Editar Datos del Curso</h1><br/>
         <h:form>
-            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px;">
-                <p:outputLabel for="codigo" value="Código del Curso:" />
-                <p:inputText id="codigo" value="#{controller.cursoActual.codigo}" readonly="true" />
+            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px; background: transparent;">
                 
-                <p:outputLabel for="nombre" value="Nombre de la Materia:" />
+                <p:outputLabel for="codigo" value="Código del Curso:" style="font-weight: bold; color: #2c3e50;"/>
+                <p:inputText id="codigo" value="#{controller.cursoActual.codigo}" readonly="true" style="background-color: #f4f6f7;" />
+                
+                <p:outputLabel for="nombre" value="Nombre de la Materia:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:inputText id="nombre" value="#{controller.cursoActual.nombre}" required="true" />
                 
-                <p:outputLabel for="creditos" value="Créditos Académicos:" />
+                <p:outputLabel for="creditos" value="Créditos Académicos:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:spinner id="creditos" value="#{controller.cursoActual.creditos}" min="1" max="10" required="true" />
             </p:panelGrid>
             

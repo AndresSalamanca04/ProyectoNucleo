@@ -1,32 +1,24 @@
 <ui:composition template="template.xhtml" xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html" xmlns:f="http://xmlns.jcp.org/jsf/core" xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
     <ui:define name="title">Editar Horario</ui:define>
     <ui:define name="content">
-        <h1 class="page-title">Editar Asignación de Horario</h1><br/>
+        <h1 class="page-title" style="color: #2980b9;">Editar Asignación de Horario</h1><br/>
         <h:form>
-            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px; border: none;">
+            <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 600px; border: none; background: transparent;">
                 
-                <p:outputLabel for="dia" value="Día de la Semana:" />
-                <p:selectOneMenu id="dia" value="#{controller.horarioActual.dia}" required="true">
-                    <f:selectItem itemLabel="Seleccione el día" itemValue="" noSelectionOption="true" />
-                    <f:selectItem itemLabel="Lunes" itemValue="Lunes" />
-                    <f:selectItem itemLabel="Martes" itemValue="Martes" />
-                    <f:selectItem itemLabel="Miércoles" itemValue="Miércoles" />
-                    <f:selectItem itemLabel="Jueves" itemValue="Jueves" />
-                    <f:selectItem itemLabel="Viernes" itemValue="Viernes" />
-                    <f:selectItem itemLabel="Sábado" itemValue="Sábado" />
-                </p:selectOneMenu>
+                <p:outputLabel for="dia" value="Día de la Semana:" style="font-weight: bold; color: #2c3e50;"/>
+                <p:inputText id="dia" value="#{controller.horarioActual.dia}" readonly="true" style="background-color: #f4f6f7;" />
 
-                <p:outputLabel for="hora" value="Franja Horaria:" />
-                <p:inputText id="hora" value="#{controller.horarioActual.hora}" required="true" />
+                <p:outputLabel for="hora" value="Franja Horaria:" style="font-weight: bold; color: #2c3e50;"/>
+                <p:inputText id="hora" value="#{controller.horarioActual.hora}" readonly="true" style="background-color: #f4f6f7;" />
 
-                <p:outputLabel for="docente" value="Docente Asignado:" />
+                <p:outputLabel for="aula" value="Aula Asignada:" style="font-weight: bold; color: #2c3e50;"/>
+                <p:inputText id="aula" value="#{controller.horarioActual.aula}" readonly="true" style="background-color: #f4f6f7;" />
+
+                <p:outputLabel for="docente" value="Docente Asignado:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:inputText id="docente" value="#{controller.horarioActual.docente}" required="true" />
 
-                <p:outputLabel for="curso" value="Curso (Materia):" />
+                <p:outputLabel for="curso" value="Curso (Materia):" style="font-weight: bold; color: #2c3e50;"/>
                 <p:inputText id="curso" value="#{controller.horarioActual.curso}" required="true" />
-
-                <p:outputLabel for="aula" value="Aula Asignada:" />
-                <p:inputText id="aula" value="#{controller.horarioActual.aula}" required="true" />
 
             </p:panelGrid>
             

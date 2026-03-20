@@ -15,18 +15,16 @@
             background-size: cover !important;
         }
 
-        /* Sidebar oscuro modificado para empujar elementos al fondo */
         .sidebar { width: 250px; background-color: #1a252f; color: white; display: flex; flex-direction: column; box-shadow: 2px 0 5px rgba(0,0,0,0.5); z-index: 10; }
         .sidebar h2 { padding: 20px; font-size: 1.5rem; font-weight: 600; border-bottom: 1px solid #2c3e50; margin-bottom: 10px; text-align: center; }
         .sidebar a { color: white; text-decoration: none; padding: 15px 20px; display: block; font-size: 1rem; transition: background 0.3s; }
         .sidebar a:hover { background-color: #34495e; border-left: 4px solid #3498db; }
 
-        /* Contenedor central al 75% */
         .main-content {
             flex-grow: 1;
             padding: 40px;
             overflow-y: auto;
-            background-color: rgba(255, 255, 255, 0.85); 
+            background-color: rgba(255, 255, 255, 0.75); 
             margin: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
@@ -46,10 +44,6 @@
             color: #2c3e50 !important;
         }
 
-        .dashboard-card { transition: transform 0.2s ease, box-shadow 0.2s ease; border-radius: 12px !important; border: 1px solid #bdc3c7; cursor: pointer; }
-        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important; }
-        
-        /* Estilo especial para el botón de cerrar sesión */
         .btn-logout {
             color: #e74c3c !important; 
             font-weight: bold; 
@@ -70,6 +64,7 @@
         <h:link outcome="cursos" value="Cursos" />
         <h:link outcome="aulas" value="Aulas" />
         <h:link outcome="horario" value="Horarios" />
+        <h:link outcome="estudiantes" value="Estudiantes" />
         
         <div style="flex-grow: 1;"></div>
         
@@ -81,6 +76,10 @@
     </div>
 
     <div class="main-content">
+        <p:growl id="mensajesGlobales" showDetail="true" life="5000">
+            <p:autoUpdate />
+        </p:growl>
+
         <ui:insert name="content">
             </ui:insert>
     </div>
