@@ -9,38 +9,51 @@
     
     <ui:define name="content">
         <h:form id="formHorarios">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <div>
                     <h1 style="color: #2980b9;">Asignación de Horarios</h1>
-                    <p style="color: #555;">Planifica la asignación de docentes, cursos y aulas por franjas horarias.</p>
+                    <p style="color: #555;">Planifica las franjas horarias.</p>
                 </div>
+                <p:commandButton value="Añadir Manual" icon="pi pi-calendar-plus" action="#{controller.irAgregarHorario()}" process="@this" immediate="true" ajax="false" styleClass="ui-button-success" />
+            </div>
+
+            <div style="background-color: rgba(44, 62, 80, 0.05); padding: 15px; border-radius: 8px; border: 1px solid #bdc3c7; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h:outputText value="⚙️ Motor Automático:" style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;"/>
                 
-                <p:commandButton value="Añadir Horario" 
-                                 icon="pi pi-calendar-plus" 
-                                 action="#{controller.irAgregarHorario()}" 
-                                 process="@this" 
-                                 immediate="true" 
-                                 ajax="false" 
-                                 styleClass="ui-button-success" />
+                <p:selectCheckboxMenu id="cursosMotor" value="#{controller.cursosSeleccionadosParaMotor}" label="1. Materias" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
+                    <f:selectItems value="#{controller.listaCursos}" var="c" itemLabel="#{c.nombre}" itemValue="#{c.codigo}" />
+                </p:selectCheckboxMenu>
+
+                <p:selectCheckboxMenu id="docentesMotor" value="#{controller.docentesSeleccionadosParaMotor}" label="2. Docentes" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
+                    <f:selectItems value="#{controller.listaDocentes}" var="d" itemLabel="#{d.nombre}" itemValue="#{d.nombre}" />
+                </p:selectCheckboxMenu>
+
+                <p:selectCheckboxMenu id="diasMotor" value="#{controller.diasSeleccionadosParaMotor}" label="3. Días" panelStyle="width: 150px">
+                    <f:selectItem itemLabel="Lunes" itemValue="Lunes" />
+                    <f:selectItem itemLabel="Martes" itemValue="Martes" />
+                    <f:selectItem itemLabel="Miércoles" itemValue="Miércoles" />
+                    <f:selectItem itemLabel="Jueves" itemValue="Jueves" />
+                    <f:selectItem itemLabel="Viernes" itemValue="Viernes" />
+                    <f:selectItem itemLabel="Sábado" itemValue="Sábado" />
+                </p:selectCheckboxMenu>
+                
+                <p:selectCheckboxMenu id="aulasMotor" value="#{controller.aulasSeleccionadasParaMotor}" label="4. Aulas" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
+                    <f:selectItems value="#{controller.listaAulas}" var="a" itemLabel="Aula #{a.numero} (Cap: #{a.capacidad})" itemValue="#{a.numero}" />
+                </p:selectCheckboxMenu>
+
+                <p:commandButton value="Generar" icon="pi pi-bolt" action="#{controller.generarHorariosAutomaticos()}" process="@this cursosMotor docentesMotor diasMotor aulasMotor" update="formHorarios mensajesGlobales" styleClass="ui-button-warning" />
             </div>
             
-            <p:dataTable value="#{controller.listaHorarios}" var="hor" emptyMessage="No hay horarios asignados." paginator="true" rows="10" styleClass="tabla-transparente">
-                <p:column headerText="DÍA"><h:outputText value="#{hor.dia}" style="font-weight: bold; color: #2c3e50;"/></p:column>
+            <p:dataTable value="#{controller.listaHorarios}" var="hor" emptyMessage="No hay horarios." paginator="true" rows="10" styleClass="tabla-transparente">
+                <p:column headerText="DÍA"><h:outputText value="#{hor.dia}" style="font-weight: bold;"/></p:column>
                 <p:column headerText="HORA"><h:outputText value="#{hor.hora}" /></p:column>
-                <p:column headerText="DOCENTE"><h:outputText value="#{hor.docente}" /></p:column>
                 <p:column headerText="CURSO"><h:outputText value="#{hor.curso}" /></p:column>
-                <p:column headerText="AULA"><h:outputText value="#{hor.aula}" /></p:column>
+                <p:column headerText="AULA / DOCENTE"><h:outputText value="#{hor.aula} - #{hor.docente}" /></p:column>
                 <p:column headerText="ACCIONES" style="width: 120px; text-align: center;">
-                    
-                    <p:commandButton icon="pi pi-pencil" 
-                                     action="#{controller.editarHorario(hor)}" 
-                                     process="@this" 
-                                     immediate="true" 
-                                     ajax="false" 
-                                     styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;" />
-                    
-                    <p:commandButton icon="pi pi-trash" action="#{controller.borrarHorario(hor)}" update="formHorarios" process="@this" styleClass="ui-button-danger ui-button-flat">
-                        <p:confirm header="Confirmación" message="¿Eliminar esta asignación de horario?" icon="pi pi-exclamation-triangle" />
+                    <p:commandButton icon="pi pi-pencil" action="#{controller.editarHorario(hor)}" process="@this" immediate="true" ajax="false" styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;" />
+                    <p:commandButton icon="pi pi-trash" action="#{controller.borrarHorario(hor)}" update="formHorarios mensajesGlobales" process="@this" styleClass="ui-button-danger ui-button-flat">
+                        <p:confirm header="Confirmación" message="¿Eliminar esta clase?" icon="pi pi-exclamation-triangle" />
                     </p:commandButton>
                 </p:column>
             </p:dataTable>
