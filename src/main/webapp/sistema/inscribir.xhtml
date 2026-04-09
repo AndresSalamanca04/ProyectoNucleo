@@ -8,8 +8,8 @@
     <ui:define name="title">Matrícula</ui:define>
     
     <ui:define name="content">
-        <h1 class="page-title" style="color: #2980b9;">Inscripción de Materias</h1>
-        <p style="margin-bottom: 20px; color: #7f8c8d;">Seleccione el estudiante y el bloque horario deseado.</p>
+        <h1 class="page-title" style="color: #2980b9;">Inscripción Oficial</h1>
+        <p style="margin-bottom: 20px; color: #7f8c8d;">Solo se muestran las clases que ya han sido publicadas oficialmente por la universidad.</p>
         
         <h:form>
             <p:panelGrid columns="2" columnClasses="ui-grid-col-3,ui-grid-col-9" layout="grid" styleClass="ui-fluid" style="max-width: 700px; background: transparent; border: none;">
@@ -22,9 +22,9 @@
 
                 <p:outputLabel for="horario" value="Clase Disponible:" style="font-weight: bold; color: #2c3e50;"/>
                 <p:selectOneMenu id="horario" value="#{controller.horarioSeleccionadoId}" required="true" filter="true" filterMatchMode="contains">
-                    <f:selectItem itemLabel="-- Elija una clase --" itemValue="" noSelectionOption="true" />
-                    <!-- Volvimos a poner listaHorarios aquí -->
-                    <f:selectItems value="#{controller.listaHorarios}" var="hor" itemLabel="#{hor.curso} | #{hor.dia} #{hor.hora} | Prof: #{hor.docente}" itemValue="#{hor.id}" />
+                    <f:selectItem itemLabel="-- Elija una clase publicada --" itemValue="" noSelectionOption="true" />
+                    <!-- ¡Ojo aquí! Ya no llama a listaHorarios, llama a horariosPublicados -->
+                    <f:selectItems value="#{controller.horariosPublicados}" var="hor" itemLabel="#{hor.curso} | #{hor.dia} #{hor.hora} | Prof: #{hor.docente}" itemValue="#{hor.id}" />
                 </p:selectOneMenu>
 
             </p:panelGrid>
