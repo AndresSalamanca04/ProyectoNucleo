@@ -11,17 +11,19 @@ public class Horario implements Serializable {
     private String docente;
     private String curso;
     private String aula;
+    private String estado; // NUEVO: Control de publicación
 
     public Horario() {
     }
 
-    public Horario(int id, String dia, String hora, String docente, String curso, String aula) {
+    public Horario(int id, String dia, String hora, String docente, String curso, String aula, String estado) {
         this.id = id;
         this.dia = dia;
         this.hora = hora;
         this.docente = docente;
         this.curso = curso;
         this.aula = aula;
+        this.estado = estado;
     }
 
     public int getId() { return id; }
@@ -36,4 +38,6 @@ public class Horario implements Serializable {
     public void setCurso(String curso) { this.curso = curso; }
     public String getAula() { return aula; }
     public void setAula(String aula) { this.aula = aula; }
+    public String getEstado() { return estado; }
+    public void setEstado(String estado) { this.estado = estado; }
 }

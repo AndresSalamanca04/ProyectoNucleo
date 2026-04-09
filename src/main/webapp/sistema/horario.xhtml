@@ -13,11 +13,12 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <div>
                     <h1 style="color: #2980b9;">Asignación de Horarios</h1>
-                    <p style="color: #555;">Planifica las franjas horarias.</p>
+                    <p style="color: #555;">Planifica y oficializa las franjas horarias.</p>
                 </div>
                 <p:commandButton value="Añadir Manual" icon="pi pi-calendar-plus" action="#{controller.irAgregarHorario()}" process="@this" immediate="true" ajax="false" styleClass="ui-button-success" />
             </div>
 
+            <!-- PANEL DEL MOTOR (ACTUALIZADO CON AULAS) -->
             <div style="background-color: rgba(44, 62, 80, 0.05); padding: 15px; border-radius: 8px; border: 1px solid #bdc3c7; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <h:outputText value="⚙️ Motor Automático:" style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;"/>
                 
@@ -46,11 +47,15 @@
             </div>
             
             <p:dataTable value="#{controller.listaHorarios}" var="hor" emptyMessage="No hay horarios." paginator="true" rows="10" styleClass="tabla-transparente">
+                <p:column headerText="ESTADO" style="width: 110px;">
+                    <h:outputText value="#{hor.estado}" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; background-color: #{hor.estado == 'PUBLICADO' ? '#27ae60' : '#f39c12'};" />
+                </p:column>
                 <p:column headerText="DÍA"><h:outputText value="#{hor.dia}" style="font-weight: bold;"/></p:column>
                 <p:column headerText="HORA"><h:outputText value="#{hor.hora}" /></p:column>
                 <p:column headerText="CURSO"><h:outputText value="#{hor.curso}" /></p:column>
                 <p:column headerText="AULA / DOCENTE"><h:outputText value="#{hor.aula} - #{hor.docente}" /></p:column>
-                <p:column headerText="ACCIONES" style="width: 120px; text-align: center;">
+                <p:column headerText="ACCIONES" style="width: 150px; text-align: center;">
+                    <p:commandButton icon="pi pi-check" action="#{controller.publicarHorario(hor)}" rendered="#{hor.estado == 'BORRADOR'}" update="formHorarios mensajesGlobales" title="Publicar Oficialmente" styleClass="ui-button-success ui-button-flat" style="margin-right: 5px;" />
                     <p:commandButton icon="pi pi-pencil" action="#{controller.editarHorario(hor)}" process="@this" immediate="true" ajax="false" styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;" />
                     <p:commandButton icon="pi pi-trash" action="#{controller.borrarHorario(hor)}" update="formHorarios mensajesGlobales" process="@this" styleClass="ui-button-danger ui-button-flat">
                         <p:confirm header="Confirmación" message="¿Eliminar esta clase?" icon="pi pi-exclamation-triangle" />

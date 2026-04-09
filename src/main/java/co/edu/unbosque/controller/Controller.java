@@ -44,7 +44,7 @@ public class Controller implements Serializable {
     private List<String> cursosSeleccionadosParaMotor = new ArrayList<>();
     private List<String> docentesSeleccionadosParaMotor = new ArrayList<>();
     private List<String> diasSeleccionadosParaMotor = new ArrayList<>();
-    private List<String> aulasSeleccionadasParaMotor = new ArrayList<>();
+    private List<String> aulasSeleccionadasParaMotor = new ArrayList<>(); // NUEVO
 
     @PostConstruct
     public void init() { actualizarTodasLasListas(); }
@@ -73,7 +73,7 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // MOTOR DE GENERACIÓN SEMI-AUTOMÁTICA (SIN ESTADOS)
+    // MOTOR DE GENERACIÓN SEMI-AUTOMÁTICA (MÚLTIPLES SESIONES Y AULAS)
     // ==========================================
     public void generarHorariosAutomaticos() {
         if (cursosSeleccionadosParaMotor == null || cursosSeleccionadosParaMotor.isEmpty() ||
@@ -99,11 +99,11 @@ public class Controller implements Serializable {
                     if (asignadoEnEsteDia) break;
                     for (String hora : horasPosibles) {
                         if (asignadoEnEsteDia) break;
-                        for (Aula aula : aulasAProcesar) {
+                        for (Aula aula : aulasAProcesar) { // Solo itera en aulas permitidas
                             if (!existeCruce("docente", docente.getNombre(), dia, hora) && 
                                 !existeCruce("aula", aula.getNumero(), dia, hora)) {
                                 
-                                String sql = "INSERT INTO horarios (dia, hora, docente, curso, aula) VALUES (?, ?, ?, ?, ?)";
+                                String sql = "INSERT INTO horarios (dia, hora, docente, curso, aula, estado) VALUES (?, ?, ?, ?, ?, 'BORRADOR')";
                                 try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
                                     ps.setString(1, dia); ps.setString(2, hora); ps.setString(3, docente.getNombre());
                                     ps.setString(4, curso.getCodigo()); ps.setString(5, aula.getNumero());
@@ -133,6 +133,13 @@ public class Controller implements Serializable {
         }
     }
 
+    public void publicarHorario(Horario h) {
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE horarios SET estado = 'PUBLICADO' WHERE id = ?")) {
+            ps.setInt(1, h.getId()); ps.executeUpdate(); cargarHorarios();
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Oficializado", "El horario ya está visible."));
+        } catch (Exception e) { manejarError(e); }
+    }
+
     public void borrarHorario(Horario h) {
         try (Connection conn = getConnection()) {
             boolean borrado = false;
@@ -155,9 +162,9 @@ public class Controller implements Serializable {
     public String inscribirMateria() {
         try {
             String codigoCurso = "";
-            try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("SELECT curso FROM horarios WHERE id = ?")) {
+            try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("SELECT curso FROM horarios WHERE id = ? AND estado = 'PUBLICADO'")) {
                 ps.setInt(1, horarioSeleccionadoId); ResultSet rs = ps.executeQuery();
-                if (rs.next()) codigoCurso = rs.getString(1); else { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error", "Clase no encontrada.")); return null; }
+                if (rs.next()) codigoCurso = rs.getString(1); else { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error", "Clase no disponible.")); return null; }
             }
             if (!validarAforo(horarioSeleccionadoId)) { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Aforo Lleno", "El aula no tiene capacidad.")); return null; }
             if (!validarPrerrequisitos(estudianteSeleccionadoId, codigoCurso)) { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Prerrequisitos", "Materias previas requeridas.")); return null; }
@@ -202,13 +209,14 @@ public class Controller implements Serializable {
     public void cargarHorarios() {
         listaHorarios = new ArrayList<>();
         try (Connection conn = getConnection(); Statement st = conn.createStatement(); ResultSet rs = st.executeQuery("SELECT * FROM horarios")) {
-            while (rs.next()) { listaHorarios.add(new Horario(rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), rs.getString("docente"), rs.getString("curso"), rs.getString("aula"))); }
+            while (rs.next()) { String est = rs.getString("estado"); listaHorarios.add(new Horario(rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), rs.getString("docente"), rs.getString("curso"), rs.getString("aula"), (est != null ? est : "BORRADOR"))); }
         } catch (Exception e) { e.printStackTrace(); }
     }
+    public List<Horario> getHorariosPublicados() { if (listaHorarios == null) return new ArrayList<>(); return listaHorarios.stream().filter(h -> "PUBLICADO".equals(h.getEstado())).collect(Collectors.toList()); }
     public String guardarHorario() {
         if (existeCruce("docente", horarioActual.getDocente(), horarioActual.getDia(), horarioActual.getHora())) { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Cruce Docente", "Ocupado.")); return null; }
         if (existeCruce("aula", horarioActual.getAula(), horarioActual.getDia(), horarioActual.getHora())) { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Cruce Aula", "Ocupada.")); return null; }
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("INSERT INTO horarios (dia, hora, docente, curso, aula) VALUES (?, ?, ?, ?, ?)")) {
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("INSERT INTO horarios (dia, hora, docente, curso, aula, estado) VALUES (?, ?, ?, ?, ?, 'BORRADOR')")) {
             ps.setString(1, horarioActual.getDia()); ps.setString(2, horarioActual.getHora()); ps.setString(3, horarioActual.getDocente()); ps.setString(4, horarioActual.getCurso()); ps.setString(5, horarioActual.getAula());
             ps.executeUpdate(); cargarHorarios(); return "horario?faces-redirect=true";
         } catch (Exception e) { return manejarError(e); }
