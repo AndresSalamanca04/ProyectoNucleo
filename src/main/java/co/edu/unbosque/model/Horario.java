@@ -15,7 +15,6 @@ public class Horario implements Serializable {
     public Horario() {
     }
 
-    // Constructor actualizado con ID
     public Horario(int id, String dia, String hora, String docente, String curso, String aula) {
         this.id = id;
         this.dia = dia;
@@ -25,7 +24,6 @@ public class Horario implements Serializable {
         this.aula = aula;
     }
 
-    // Getters y Setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     public String getDia() { return dia; }
