@@ -1,23 +1,58 @@
-<ui:composition template="template.xhtml" xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html" xmlns:f="http://xmlns.jcp.org/jsf/core" xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
+<ui:composition template="template.xhtml" 
+                xmlns="http://www.w3.org/1999/xhtml" 
+                xmlns:h="http://xmlns.jcp.org/jsf/html" 
+                xmlns:f="http://xmlns.jcp.org/jsf/core" 
+                xmlns:ui="http://xmlns.jcp.org/jsf/facelets" 
+                xmlns:p="http://primefaces.org/ui">
+                
     <ui:define name="title">Gestión de Docentes</ui:define>
+    
     <ui:define name="content">
         <h:form id="formDocentes">
+            
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h1 style="color: #2980b9;">Registro de Docentes</h1>
                 <p:commandButton value="Añadir Docente" icon="pi pi-user-plus" action="#{controller.irAgregarDocente()}" ajax="false" styleClass="ui-button-success" />
             </div>
-            <p:dataTable value="#{controller.listaDocentes}" var="doc" emptyMessage="No hay docentes registrados." paginator="true" rows="10" styleClass="tabla-transparente">
-                <p:column headerText="NOMBRE"><h:outputText value="#{doc.nombre}" style="font-weight: bold; color: #2c3e50;"/></p:column>
-                <p:column headerText="CORREO"><h:outputText value="#{doc.correo}" /></p:column>
-                <p:column headerText="TIPO"><h:outputText value="#{doc.tipo}" /></p:column>
-                <p:column headerText="DEPARTAMENTO"><h:outputText value="#{doc.departamento}" /></p:column>
+            
+            <!-- Agregamos widgetVar y filteredValue para que la búsqueda funcione -->
+            <p:dataTable widgetVar="tablaDocentes" value="#{controller.listaDocentes}" var="doc" 
+                         filteredValue="#{controller.docentesFiltrados}" 
+                         emptyMessage="No se encontraron docentes con ese nombre." paginator="true" rows="10" styleClass="tabla-transparente">
+                
+                <!-- Barra de búsqueda superior -->
+                <f:facet name="header">
+                    <div style="text-align: right;">
+                        <h:outputText value="Buscar Docente: " style="margin-right: 10px; font-weight: bold; color: #2c3e50;" />
+                        <p:inputText id="globalFilter" onkeyup="PF('tablaDocentes').filter()" placeholder="Escriba el nombre..." style="width: 250px;" />
+                    </div>
+                </f:facet>
+
+                <!-- El atributo filterBy conecta esta columna con la barra de búsqueda -->
+                <p:column headerText="NOMBRE" filterBy="#{doc.nombre}" filterMatchMode="contains" filterStyle="display:none;">
+                    <h:outputText value="#{doc.nombre}" style="font-weight: bold; color: #2c3e50;"/>
+                </p:column>
+                
+                <p:column headerText="CORREO">
+                    <h:outputText value="#{doc.correo}" />
+                </p:column>
+                
+                <p:column headerText="TIPO">
+                    <h:outputText value="#{doc.tipo}" />
+                </p:column>
+                
+                <p:column headerText="DEPARTAMENTO">
+                    <h:outputText value="#{doc.departamento}" />
+                </p:column>
+                
                 <p:column headerText="ACCIONES" style="width: 120px; text-align: center;">
                     <p:commandButton icon="pi pi-pencil" action="#{controller.editarDocente(doc)}" ajax="false" styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;" />
-                    <p:commandButton icon="pi pi-trash" action="#{controller.borrarDocente(doc)}" update="formDocentes" styleClass="ui-button-danger ui-button-flat">
+                    <p:commandButton icon="pi pi-trash" action="#{controller.borrarDocente(doc)}" update="formDocentes mensajesGlobales" styleClass="ui-button-danger ui-button-flat">
                         <p:confirm header="Confirmación" message="¿Deseas eliminar a este docente?" icon="pi pi-exclamation-triangle" />
                     </p:commandButton>
                 </p:column>
             </p:dataTable>
+            
             <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="350">
                 <p:commandButton value="No" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
                 <p:commandButton value="Sí" type="button" styleClass="ui-confirmdialog-yes ui-button-danger" />

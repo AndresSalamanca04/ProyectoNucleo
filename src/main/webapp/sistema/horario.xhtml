@@ -18,19 +18,15 @@
                 <p:commandButton value="Añadir Manual" icon="pi pi-calendar-plus" action="#{controller.irAgregarHorario()}" process="@this" immediate="true" ajax="false" styleClass="ui-button-success" />
             </div>
 
-            <!-- PANEL DEL MOTOR (ACTUALIZADO CON AULAS) -->
-            <div style="background-color: rgba(44, 62, 80, 0.05); padding: 15px; border-radius: 8px; border: 1px solid #bdc3c7; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <!-- PANEL DEL MOTOR SIMPLIFICADO -->
+            <div style="background-color: rgba(44, 62, 80, 0.05); padding: 15px; border-radius: 8px; border: 1px solid #bdc3c7; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                 <h:outputText value="⚙️ Motor Automático:" style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;"/>
                 
-                <p:selectCheckboxMenu id="cursosMotor" value="#{controller.cursosSeleccionadosParaMotor}" label="1. Materias" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
+                <p:selectCheckboxMenu id="cursosMotor" value="#{controller.cursosSeleccionadosParaMotor}" label="1. Materias" filter="true" filterMatchMode="contains" panelStyle="width: 250px">
                     <f:selectItems value="#{controller.listaCursos}" var="c" itemLabel="#{c.nombre}" itemValue="#{c.codigo}" />
                 </p:selectCheckboxMenu>
 
-                <p:selectCheckboxMenu id="docentesMotor" value="#{controller.docentesSeleccionadosParaMotor}" label="2. Docentes" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
-                    <f:selectItems value="#{controller.listaDocentes}" var="d" itemLabel="#{d.nombre}" itemValue="#{d.nombre}" />
-                </p:selectCheckboxMenu>
-
-                <p:selectCheckboxMenu id="diasMotor" value="#{controller.diasSeleccionadosParaMotor}" label="3. Días" panelStyle="width: 150px">
+                <p:selectCheckboxMenu id="diasMotor" value="#{controller.diasSeleccionadosParaMotor}" label="2. Días" panelStyle="width: 150px">
                     <f:selectItem itemLabel="Lunes" itemValue="Lunes" />
                     <f:selectItem itemLabel="Martes" itemValue="Martes" />
                     <f:selectItem itemLabel="Miércoles" itemValue="Miércoles" />
@@ -39,21 +35,54 @@
                     <f:selectItem itemLabel="Sábado" itemValue="Sábado" />
                 </p:selectCheckboxMenu>
                 
-                <p:selectCheckboxMenu id="aulasMotor" value="#{controller.aulasSeleccionadasParaMotor}" label="4. Aulas" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
-                    <f:selectItems value="#{controller.listaAulas}" var="a" itemLabel="Aula #{a.numero} (Cap: #{a.capacidad})" itemValue="#{a.numero}" />
+                <p:selectCheckboxMenu id="aulasMotor" value="#{controller.aulasSeleccionadasParaMotor}" label="3. Aulas" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
+                    <f:selectItems value="#{controller.listaAulas}" var="a" itemLabel="Aula #{a.numero}" itemValue="#{a.numero}" />
                 </p:selectCheckboxMenu>
 
-                <p:commandButton value="Generar" icon="pi pi-bolt" action="#{controller.generarHorariosAutomaticos()}" process="@this cursosMotor docentesMotor diasMotor aulasMotor" update="formHorarios mensajesGlobales" styleClass="ui-button-warning" />
+                <p:commandButton value="Generar" icon="pi pi-bolt" action="#{controller.generarHorariosAutomaticos()}" process="@this cursosMotor diasMotor aulasMotor" update="formHorarios mensajesGlobales" styleClass="ui-button-warning" />
+            </div>
+
+            <!-- NUEVO: FILTRO DE CALENDARIO POR DÍAS -->
+            <div style="text-align: center; margin-bottom: 15px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">
+                <p:selectOneButton value="#{controller.diaFiltro}" unselectable="false">
+                    <p:ajax update="formHorarios" />
+                    <f:selectItem itemLabel="📅 Toda la Semana" itemValue="" />
+                    <f:selectItem itemLabel="Lunes" itemValue="Lunes" />
+                    <f:selectItem itemLabel="Martes" itemValue="Martes" />
+                    <f:selectItem itemLabel="Miércoles" itemValue="Miércoles" />
+                    <f:selectItem itemLabel="Jueves" itemValue="Jueves" />
+                    <f:selectItem itemLabel="Viernes" itemValue="Viernes" />
+                    <f:selectItem itemLabel="Sábado" itemValue="Sábado" />
+                </p:selectOneButton>
             </div>
             
-            <p:dataTable value="#{controller.listaHorarios}" var="hor" emptyMessage="No hay horarios." paginator="true" rows="10" styleClass="tabla-transparente">
+            <!-- LA TABLA AHORA SE ALIMENTA DE 'horariosMostrados' -->
+            <p:dataTable widgetVar="tablaHorarios" value="#{controller.horariosMostrados}" var="hor" 
+                         filteredValue="#{controller.horariosFiltrados}"
+                         emptyMessage="No se encontraron clases para este día o búsqueda." paginator="true" rows="10" styleClass="tabla-transparente">
+                
+                <f:facet name="header">
+                    <div style="text-align: right;">
+                        <h:outputText value="Buscar: " style="margin-right: 10px; font-weight: bold; color: #2c3e50;" />
+                        <p:inputText id="globalFilter" onkeyup="PF('tablaHorarios').filter()" placeholder="Materia o Docente..." style="width: 250px;" />
+                    </div>
+                </f:facet>
+
                 <p:column headerText="ESTADO" style="width: 110px;">
                     <h:outputText value="#{hor.estado}" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; background-color: #{hor.estado == 'PUBLICADO' ? '#27ae60' : '#f39c12'};" />
                 </p:column>
+                
                 <p:column headerText="DÍA"><h:outputText value="#{hor.dia}" style="font-weight: bold;"/></p:column>
                 <p:column headerText="HORA"><h:outputText value="#{hor.hora}" /></p:column>
-                <p:column headerText="CURSO"><h:outputText value="#{hor.curso}" /></p:column>
-                <p:column headerText="AULA / DOCENTE"><h:outputText value="#{hor.aula} - #{hor.docente}" /></p:column>
+                
+                <p:column headerText="MATERIA" filterBy="#{hor.cursoNombre}" filterMatchMode="contains" filterStyle="display:none;">
+                    <h:outputText value="#{hor.cursoNombre}" style="font-weight: bold; color: #e67e22;"/>
+                </p:column>
+                
+                <p:column headerText="AULA / DOCENTE" filterBy="#{hor.docente}" filterMatchMode="contains" filterStyle="display:none;">
+                    <h:outputText value="#{hor.aula} - #{hor.docente}" />
+                </p:column>
+                
                 <p:column headerText="ACCIONES" style="width: 150px; text-align: center;">
                     <p:commandButton icon="pi pi-check" action="#{controller.publicarHorario(hor)}" rendered="#{hor.estado == 'BORRADOR'}" update="formHorarios mensajesGlobales" title="Publicar Oficialmente" styleClass="ui-button-success ui-button-flat" style="margin-right: 5px;" />
                     <p:commandButton icon="pi pi-pencil" action="#{controller.editarHorario(hor)}" process="@this" immediate="true" ajax="false" styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;" />

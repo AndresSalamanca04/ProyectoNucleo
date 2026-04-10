@@ -3,22 +3,21 @@
     <ui:define name="content">
         <h:form id="formCursos">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div><h1 style="color: #2980b9;">Gestión de Cursos</h1><p style="color: #555;">Administra los cursos ofertados y sus créditos.</p></div>
-                <p:commandButton value="Registrar Curso" icon="pi pi-plus" action="#{controller.irAgregarCurso()}" styleClass="ui-button-success" />
+                <h1 style="color: #2980b9;">Registro de Materias</h1>
+                <p:commandButton value="Añadir Curso" icon="pi pi-book" action="#{controller.irAgregarCurso()}" ajax="false" styleClass="ui-button-success" />
             </div>
-            
             <p:dataTable value="#{controller.listaCursos}" var="cur" emptyMessage="No hay cursos registrados." paginator="true" rows="10" styleClass="tabla-transparente">
-                <p:column headerText="CÓDIGO"><h:outputText value="#{cur.codigo}" style="font-weight: bold;" /></p:column>
-                <p:column headerText="NOMBRE"><h:outputText value="#{cur.nombre}" /></p:column>
+                <p:column headerText="CÓDIGO"><h:outputText value="#{cur.codigo}" style="font-weight: bold;"/></p:column>
+                <p:column headerText="NOMBRE DE MATERIA"><h:outputText value="#{cur.nombre}" /></p:column>
                 <p:column headerText="CRÉDITOS"><h:outputText value="#{cur.creditos}" /></p:column>
+                <p:column headerText="DOCENTE ASIGNADO"><h:outputText value="#{cur.docenteAsignado != null ? cur.docenteAsignado : 'Sin asignar'}" style="color: #16a085; font-weight: bold;"/></p:column>
                 <p:column headerText="ACCIONES" style="width: 120px; text-align: center;">
-                    <p:commandButton icon="pi pi-pencil" action="#{controller.editarCurso(cur)}" styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;" title="Editar" />
-                    <p:commandButton icon="pi pi-trash" action="#{controller.borrarCurso(cur)}" update="formCursos" styleClass="ui-button-danger ui-button-flat" title="Eliminar">
-                        <p:confirm header="Confirmación" message="¿Seguro que deseas borrar este curso?" icon="pi pi-exclamation-triangle" />
+                    <p:commandButton icon="pi pi-pencil" action="#{controller.editarCurso(cur)}" ajax="false" styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;" />
+                    <p:commandButton icon="pi pi-trash" action="#{controller.borrarCurso(cur)}" update="formCursos" styleClass="ui-button-danger ui-button-flat">
+                        <p:confirm header="Confirmación" message="¿Eliminar esta materia?" icon="pi pi-exclamation-triangle" />
                     </p:commandButton>
                 </p:column>
             </p:dataTable>
-
             <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="350">
                 <p:commandButton value="No" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
                 <p:commandButton value="Sí" type="button" styleClass="ui-confirmdialog-yes ui-button-danger" />
