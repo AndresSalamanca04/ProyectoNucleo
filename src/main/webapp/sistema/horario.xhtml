@@ -18,9 +18,8 @@
                 <p:commandButton value="Añadir Manual" icon="pi pi-calendar-plus" action="#{controller.irAgregarHorario()}" process="@this" immediate="true" ajax="false" styleClass="ui-button-success" />
             </div>
 
-            <!-- PANEL DEL MOTOR SIMPLIFICADO -->
             <div style="background-color: rgba(44, 62, 80, 0.05); padding: 15px; border-radius: 8px; border: 1px solid #bdc3c7; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                <h:outputText value="⚙️ Motor Automático:" style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;"/>
+                <h:outputText value="⚙️ Motor Automático (Asignación Inteligente):" style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;"/>
                 
                 <p:selectCheckboxMenu id="cursosMotor" value="#{controller.cursosSeleccionadosParaMotor}" label="1. Materias" filter="true" filterMatchMode="contains" panelStyle="width: 250px">
                     <f:selectItems value="#{controller.listaCursos}" var="c" itemLabel="#{c.nombre}" itemValue="#{c.codigo}" />
@@ -34,15 +33,10 @@
                     <f:selectItem itemLabel="Viernes" itemValue="Viernes" />
                     <f:selectItem itemLabel="Sábado" itemValue="Sábado" />
                 </p:selectCheckboxMenu>
-                
-                <p:selectCheckboxMenu id="aulasMotor" value="#{controller.aulasSeleccionadasParaMotor}" label="3. Aulas" filter="true" filterMatchMode="contains" panelStyle="width: 200px">
-                    <f:selectItems value="#{controller.listaAulas}" var="a" itemLabel="Aula #{a.numero}" itemValue="#{a.numero}" />
-                </p:selectCheckboxMenu>
 
-                <p:commandButton value="Generar" icon="pi pi-bolt" action="#{controller.generarHorariosAutomaticos()}" process="@this cursosMotor diasMotor aulasMotor" update="formHorarios mensajesGlobales" styleClass="ui-button-warning" />
+                <p:commandButton value="Generar Automáticamente" icon="pi pi-bolt" action="#{controller.generarHorariosAutomaticos()}" process="@this cursosMotor diasMotor" update="formHorarios mensajesGlobales" styleClass="ui-button-warning" />
             </div>
 
-            <!-- NUEVO: FILTRO DE CALENDARIO POR DÍAS -->
             <div style="text-align: center; margin-bottom: 15px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">
                 <p:selectOneButton value="#{controller.diaFiltro}" unselectable="false">
                     <p:ajax update="formHorarios" />
@@ -56,7 +50,6 @@
                 </p:selectOneButton>
             </div>
             
-            <!-- LA TABLA AHORA SE ALIMENTA DE 'horariosMostrados' -->
             <p:dataTable widgetVar="tablaHorarios" value="#{controller.horariosMostrados}" var="hor" 
                          filteredValue="#{controller.horariosFiltrados}"
                          emptyMessage="No se encontraron clases para este día o búsqueda." paginator="true" rows="10" styleClass="tabla-transparente">
@@ -79,6 +72,11 @@
                     <h:outputText value="#{hor.cursoNombre}" style="font-weight: bold; color: #e67e22;"/>
                 </p:column>
                 
+                <p:column headerText="AFORO (Inscritos / Capacidad)" style="text-align: center;">
+                    <h:outputText value="#{hor.inscritos} / #{hor.capacidad}" 
+                                  style="font-weight: bold; font-size: 1.1em; color: #{hor.inscritos >= hor.capacidad ? '#c0392b' : '#27ae60'};" />
+                </p:column>
+
                 <p:column headerText="AULA / DOCENTE" filterBy="#{hor.docente}" filterMatchMode="contains" filterStyle="display:none;">
                     <h:outputText value="#{hor.aula} - #{hor.docente}" />
                 </p:column>

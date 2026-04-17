@@ -9,6 +9,7 @@ import jakarta.faces.context.FacesContext;
 import java.io.Serializable;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,7 +49,6 @@ public class Controller implements Serializable {
     // VARIABLES DEL MOTOR
     private List<String> cursosSeleccionadosParaMotor = new ArrayList<>();
     private List<String> diasSeleccionadosParaMotor = new ArrayList<>();
-    private List<String> aulasSeleccionadasParaMotor = new ArrayList<>(); 
     
     // VARIABLE PARA EL FILTRO DE CALENDARIO
     private String diaFiltro = "";
@@ -62,11 +62,7 @@ public class Controller implements Serializable {
     }
 
     public void actualizarTodasLasListas() {
-        cargarDocentes(); 
-        cargarCursos(); 
-        cargarAulas(); 
-        cargarHorarios(); 
-        cargarEstudiantes();
+        cargarDocentes(); cargarCursos(); cargarAulas(); cargarHorarios(); cargarEstudiantes();
     }
 
     public String login() {
@@ -83,9 +79,6 @@ public class Controller implements Serializable {
         return "/sistema/login?faces-redirect=true";
     }
 
-    // ==========================================
-    // MÉTODO PARA MOSTRAR HORARIOS FILTRADOS POR DÍA (CALENDARIO)
-    // ==========================================
     public List<Horario> getHorariosMostrados() {
         if (listaHorarios == null) return new ArrayList<>();
         if (diaFiltro == null || diaFiltro.isEmpty()) {
@@ -95,14 +88,12 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // MOTOR DE GENERACIÓN SEMI-AUTOMÁTICA 
+    // MOTOR DE GENERACIÓN CON ASIGNACIÓN AUTOMÁTICA
     // ==========================================
     public void generarHorariosAutomaticos() {
         if (cursosSeleccionadosParaMotor == null || cursosSeleccionadosParaMotor.isEmpty() ||
-            diasSeleccionadosParaMotor == null || diasSeleccionadosParaMotor.isEmpty() ||
-            aulasSeleccionadasParaMotor == null || aulasSeleccionadasParaMotor.isEmpty()) {
-            
-            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Faltan Parámetros", "Debe seleccionar al menos una materia, un día y un aula."));
+            diasSeleccionadosParaMotor == null || diasSeleccionadosParaMotor.isEmpty()) {
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Faltan Parámetros", "Debe seleccionar al menos una materia y un día."));
             return;
         }
 
@@ -110,7 +101,9 @@ public class Controller implements Serializable {
         int sesionesAsignadas = 0;
 
         List<Curso> cursosAProcesar = listaCursos.stream().filter(c -> cursosSeleccionadosParaMotor.contains(c.getCodigo())).collect(Collectors.toList());
-        List<Aula> aulasAProcesar = listaAulas.stream().filter(a -> aulasSeleccionadasParaMotor.contains(a.getNumero())).collect(Collectors.toList());
+        
+        List<Aula> aulasOptimizadas = new ArrayList<>(listaAulas);
+        aulasOptimizadas.sort(Comparator.comparingInt(Aula::getCapacidad));
 
         for (Curso curso : cursosAProcesar) {
             String docenteDelCurso = curso.getDocenteAsignado();
@@ -124,20 +117,23 @@ public class Controller implements Serializable {
                 boolean asignadoEnEsteDia = false;
                 for (String hora : horasPosibles) {
                     if (asignadoEnEsteDia) break;
-                    for (Aula aula : aulasAProcesar) { 
-                        if (!existeCruce("docente", docenteDelCurso, dia, hora) && 
-                            !existeCruce("aula", aula.getNumero(), dia, hora)) {
-                            
-                            String sql = "INSERT INTO horarios (dia, hora, docente, curso, aula, estado) VALUES (?, ?, ?, ?, ?, 'BORRADOR')";
-                            try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-                                ps.setString(1, dia); ps.setString(2, hora); ps.setString(3, docenteDelCurso);
-                                ps.setString(4, curso.getCodigo()); ps.setString(5, aula.getNumero());
-                                ps.executeUpdate();
+                    
+                    for (Aula aula : aulasOptimizadas) { 
+                        if (aula.getCapacidad() > 0) {
+                            if (!existeCruce("docente", docenteDelCurso, dia, hora) && 
+                                !existeCruce("aula", aula.getNumero(), dia, hora)) {
                                 
-                                sesionesAsignadas++;
-                                asignadoEnEsteDia = true; 
-                                break;
-                            } catch (Exception e) { manejarError(e); }
+                                String sql = "INSERT INTO horarios (dia, hora, docente, curso, aula, estado) VALUES (?, ?, ?, ?, ?, 'BORRADOR')";
+                                try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+                                    ps.setString(1, dia); ps.setString(2, hora); ps.setString(3, docenteDelCurso);
+                                    ps.setString(4, curso.getCodigo()); ps.setString(5, aula.getNumero());
+                                    ps.executeUpdate(); 
+                                    
+                                    sesionesAsignadas++;
+                                    asignadoEnEsteDia = true; 
+                                    break; 
+                                } catch (Exception e) { manejarError(e); }
+                            }
                         }
                     }
                 }
@@ -147,12 +143,11 @@ public class Controller implements Serializable {
         cargarHorarios();
         cursosSeleccionadosParaMotor.clear();
         diasSeleccionadosParaMotor.clear();
-        aulasSeleccionadasParaMotor.clear();
         
         if (sesionesAsignadas > 0) {
-            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Motor Finalizado", "Se generaron " + sesionesAsignadas + " sesiones de clase."));
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Motor Finalizado", "Se asignaron " + sesionesAsignadas + " clases automáticamente optimizando aulas."));
         } else {
-            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Sin Espacio", "No hay disponibilidad cruzando los días y aulas seleccionados."));
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Sin Espacio", "No hay aulas ni disponibilidad para los días seleccionados."));
         }
     }
 
@@ -205,7 +200,6 @@ public class Controller implements Serializable {
     private boolean validarCargaAcademica(String documento, String codigoCurso) throws Exception { int credCurso = 0; int credActual = 0; try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT creditos FROM cursos WHERE codigo = ?")) { ps.setString(1, codigoCurso); ResultSet rs = ps.executeQuery(); if (rs.next()) credCurso = rs.getInt(1); } try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT creditos_matriculados FROM estudiantes WHERE documento = ?")) { ps.setString(1, documento); ResultSet rs = ps.executeQuery(); if (rs.next()) credActual = rs.getInt(1); } return (credActual + credCurso) <= 18; }
     private boolean existeCruce(String columna, String valor, String dia, String hora) { String sql = "SELECT COUNT(*) FROM horarios WHERE " + columna + " = ? AND dia = ? AND hora = ?"; try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) { ps.setString(1, valor); ps.setString(2, dia); ps.setString(3, hora); ResultSet rs = ps.executeQuery(); if (rs.next()) return rs.getInt(1) > 0; } catch (Exception e) { e.printStackTrace(); } return false; }
     
-    // MÉTODO DE ERROR MEJORADO
     private String manejarError(Exception e) { 
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error de Base de Datos", e.getMessage())); 
         e.printStackTrace();
@@ -213,20 +207,31 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // CRUDS MEJORADOS CON MANEJO DE ERRORES EN CARGA
+    // CRUDS (AQUÍ ESTÁ LA NUEVA CONSULTA DE AFORO)
     // ==========================================
     public void cargarHorarios() {
         listaHorarios = new ArrayList<>();
-        String sql = "SELECT h.*, c.nombre AS curso_nombre FROM horarios h LEFT JOIN cursos c ON h.curso = c.codigo";
+        // SQL MEJORADO: Cuenta las inscripciones y trae la capacidad del aula en una sola consulta
+        String sql = "SELECT h.*, c.nombre AS curso_nombre, a.capacidad, " +
+                     "(SELECT COUNT(*) FROM inscripciones i WHERE i.id_horario = h.id) AS inscritos " +
+                     "FROM horarios h " +
+                     "LEFT JOIN cursos c ON h.curso = c.codigo " +
+                     "LEFT JOIN aulas a ON h.aula = a.numero";
+                     
         try (Connection conn = getConnection(); Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
             while (rs.next()) { 
                 String est = rs.getString("estado"); 
                 String nombreCurso = rs.getString("curso_nombre");
                 if (nombreCurso == null) nombreCurso = rs.getString("curso"); 
-                listaHorarios.add(new Horario(rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), rs.getString("docente"), rs.getString("curso"), rs.getString("aula"), (est != null ? est : "BORRADOR"), nombreCurso)); 
+                
+                int cap = rs.getInt("capacidad");
+                int ins = rs.getInt("inscritos");
+                
+                listaHorarios.add(new Horario(rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), rs.getString("docente"), rs.getString("curso"), rs.getString("aula"), (est != null ? est : "BORRADOR"), nombreCurso, ins, cap)); 
             }
         } catch (Exception e) { manejarError(e); }
     }
+    
     public List<Horario> getHorariosPublicados() { if (listaHorarios == null) return new ArrayList<>(); return listaHorarios.stream().filter(h -> "PUBLICADO".equals(h.getEstado())).collect(Collectors.toList()); }
     public String guardarHorario() {
         if (existeCruce("docente", horarioActual.getDocente(), horarioActual.getDia(), horarioActual.getHora())) { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Cruce Docente", "Ocupado.")); return null; }
@@ -283,11 +288,7 @@ public class Controller implements Serializable {
     
     public List<String> getCursosSeleccionadosParaMotor() { return cursosSeleccionadosParaMotor; } public void setCursosSeleccionadosParaMotor(List<String> c) { this.cursosSeleccionadosParaMotor = c; }
     public List<String> getDiasSeleccionadosParaMotor() { return diasSeleccionadosParaMotor; } public void setDiasSeleccionadosParaMotor(List<String> d) { this.diasSeleccionadosParaMotor = d; }
-    public List<String> getAulasSeleccionadasParaMotor() { return aulasSeleccionadasParaMotor; } public void setAulasSeleccionadasParaMotor(List<String> a) { this.aulasSeleccionadasParaMotor = a; }
     public List<Docente> getDocentesFiltrados() { return docentesFiltrados; } public void setDocentesFiltrados(List<Docente> docentesFiltrados) { this.docentesFiltrados = docentesFiltrados; }
     public List<Horario> getHorariosFiltrados() { return horariosFiltrados; } public void setHorariosFiltrados(List<Horario> horariosFiltrados) { this.horariosFiltrados = horariosFiltrados; }
-    
-    // GETTERS Y SETTERS DEL FILTRO CALENDARIO
-    public String getDiaFiltro() { return diaFiltro; }
-    public void setDiaFiltro(String diaFiltro) { this.diaFiltro = diaFiltro; }
+    public String getDiaFiltro() { return diaFiltro; } public void setDiaFiltro(String diaFiltro) { this.diaFiltro = diaFiltro; }
 }
