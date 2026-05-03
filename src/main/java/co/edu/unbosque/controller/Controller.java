@@ -431,7 +431,7 @@ public class Controller implements Serializable {
     public Aula getAulaActual() { return aulaActual; } public void setAulaActual(Aula a) { this.aulaActual = a; }
     public Horario getHorarioActual() { return horarioActual; } public void setHorarioActual(Horario h) { this.horarioActual = h; }
     public Estudiante getEstudianteActual() { return estudianteActual; } public void setEstudianteActual(Estudiante e) { this.estudianteActual = e; }
-    
+
     public String getEstudianteSeleccionadoId() { return estudianteSeleccionadoId; } public void setEstudianteSeleccionadoId(String e) { this.estudianteSeleccionadoId = e; }
     public int getHorarioSeleccionadoId() { return horarioSeleccionadoId; } public void setHorarioSeleccionadoId(int h) { this.horarioSeleccionadoId = h; }
     
