@@ -4,39 +4,92 @@
                 xmlns:f="http://xmlns.jcp.org/jsf/core" 
                 xmlns:ui="http://xmlns.jcp.org/jsf/facelets" 
                 xmlns:p="http://primefaces.org/ui">
-    
+                
     <ui:define name="title">Gestión de Estudiantes</ui:define>
     
     <ui:define name="content">
-        <h1 class="page-title" style="color: #2980b9;">Gestión de Estudiantes</h1><br/>
-        
+        <!-- FORMULARIO PRINCIPAL DE LA TABLA -->
         <h:form id="formEstudiantes">
-            <p:toolbar style="margin-bottom: 20px; background: transparent; border: none;">
-                <p:toolbarGroup>
-                    <p:commandButton value="Nuevo Estudiante" action="agregarEstudiantes?faces-redirect=true" icon="pi pi-plus" styleClass="ui-button-success" />
-                </p:toolbarGroup>
-                <p:toolbarGroup align="right">
-                    <p:commandButton value="Matricular Estudiante" action="inscribir?faces-redirect=true" icon="pi pi-check-square" styleClass="ui-button-info" />
-                </p:toolbarGroup>
-            </p:toolbar>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1 style="color: #2980b9;">Registro de Estudiantes</h1>
+                <p:commandButton value="Nuevo Estudiante" icon="pi pi-user-plus" action="#{controller.irAgregarEstudiante()}" ajax="false" styleClass="ui-button-success" />
+            </div>
 
-            <p:dataTable value="#{controller.listaEstudiantes}" var="est" styleClass="tabla-transparente" emptyMessage="No hay estudiantes registrados." paginator="true" rows="10">
-                <p:column headerText="Documento">
-                    <h:outputText value="#{est.documento}" />
+            <p:dataTable value="#{controller.listaEstudiantes}" var="est" rowKey="#{est.documento}" paginator="true" rows="10" styleClass="tabla-transparente">
+                
+                <!-- Botón para expandir fila y ver materias inscritas (Retiros) -->
+                <p:column style="width:2rem">
+                    <p:rowToggler />
                 </p:column>
-                <p:column headerText="Nombre">
-                    <h:outputText value="#{est.nombre}" />
+
+                <p:column headerText="DOCUMENTO"><h:outputText value="#{est.documento}" style="font-weight: bold;"/></p:column>
+                <p:column headerText="NOMBRE"><h:outputText value="#{est.nombre}" /></p:column>
+                
+                <!-- NUEVA COLUMNA DE CORREO -->
+                <p:column headerText="CORREO"><h:outputText value="#{est.correo}" /></p:column>
+                
+                <p:column headerText="CARRERA"><h:outputText value="#{est.carrera}" /></p:column>
+                <p:column headerText="CRÉDITOS"><h:outputText value="#{est.creditosMatriculados} / 18" style="color: #{est.creditosMatriculados > 15 ? 'red' : 'green'}; font-weight: bold;"/></p:column>
+
+                <p:column headerText="ACCIONES" style="width: 180px; text-align: center;">
+                    <!-- BOTÓN: Matricular Materia -->
+                    <p:commandButton icon="pi pi-book" title="Matricular Materia" 
+                                     action="#{controller.setEstudianteSeleccionadoId(est.documento)}" 
+                                     oncomplete="PF('dialogoMatricula').show()" 
+                                     update=":formMatricula" 
+                                     styleClass="ui-button-info ui-button-flat" style="margin-right: 5px;" />
+                                     
+                    <!-- Botones de Editar y Eliminar -->
+                    <p:commandButton icon="pi pi-pencil" action="#{controller.editarEstudiante(est)}" ajax="false" styleClass="ui-button-warning ui-button-flat" title="Editar Datos" style="margin-right: 5px;" />
+                    <p:commandButton icon="pi pi-trash" action="#{controller.borrarEstudiante(est)}" update="formEstudiantes" styleClass="ui-button-danger ui-button-flat" title="Eliminar">
+                        <p:confirm header="Confirmación" message="¿Eliminar estudiante?" icon="pi pi-exclamation-triangle" />
+                    </p:commandButton>
                 </p:column>
-                <p:column headerText="Carrera">
-                    <h:outputText value="#{est.carrera}" />
-                </p:column>
-                <p:column headerText="Semestre">
-                    <h:outputText value="#{est.semestreActual}" />
-                </p:column>
-                <p:column headerText="Créditos Matriculados">
-                    <h:outputText value="#{est.creditosMatriculados} / 18" style="font-weight: bold; color: #{est.creditosMatriculados eq 18 ? 'red' : 'green'};" />
-                </p:column>
+
+                <!-- PANEL DESPLEGABLE: Retiro de Materias -->
+                <p:rowExpansion>
+                    <div style="padding: 10px; background: #f9f9f9; border-radius: 5px;">
+                        <h3>Materias Inscritas por #{est.nombre}</h3>
+                        <p:dataTable value="#{controller.getMateriasInscritas(est.documento)}" var="ins" emptyMessage="No tiene materias inscritas.">
+                            <p:column headerText="MATERIA"><h:outputText value="#{ins.cursoNombre}" /></p:column>
+                            <p:column headerText="HORARIO"><h:outputText value="#{ins.dia} - #{ins.hora}" /></p:column>
+                            <p:column headerText="AULA"><h:outputText value="#{ins.aula}" /></p:column>
+                            <p:column headerText="ACCIÓN" style="width: 100px;">
+                                <p:commandButton value="Retirar" icon="pi pi-times" action="#{controller.retirarMateria(est.documento, ins)}" 
+                                                 update="formEstudiantes" styleClass="ui-button-danger ui-button-sm" />
+                            </p:column>
+                        </p:dataTable>
+                    </div>
+                </p:rowExpansion>
             </p:dataTable>
+
+            <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="350">
+                <p:commandButton value="No" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
+                <p:commandButton value="Sí" type="button" styleClass="ui-confirmdialog-yes ui-button-danger" />
+            </p:confirmDialog>
         </h:form>
+
+        <!-- VENTANA EMERGENTE (DIALOG): Formulario de Matrícula -->
+        <p:dialog header="Matricular Nueva Materia" widgetVar="dialogoMatricula" modal="true" responsive="true" width="500">
+            <h:form id="formMatricula">
+                <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
+                    <h:outputText value="Seleccione el horario disponible:" style="font-weight:bold; color: #2c3e50;" />
+                    
+                    <p:selectOneMenu value="#{controller.horarioSeleccionadoId}" style="width: 100%" filter="true" filterMatchMode="contains">
+                        <f:selectItem itemLabel="-- Seleccione una clase --" itemValue="" />
+                        <!-- Carga solo los horarios con estado PUBLICADO -->
+                        <f:selectItems value="#{controller.horariosPublicados}" var="hp" 
+                                       itemLabel="#{hp.cursoNombre} (#{hp.dia} #{hp.hora}) - Cupos: #{hp.capacidad - hp.inscritos}" 
+                                       itemValue="#{hp.id}" 
+                                       itemDisabled="#{hp.inscritos >= hp.capacidad}" />
+                    </p:selectOneMenu>
+                    
+                    <p:commandButton value="Confirmar Inscripción" action="#{controller.inscribirMateria()}" 
+                                     oncomplete="if(!args.validationFailed) PF('dialogoMatricula').hide()"
+                                     update=":formEstudiantes" styleClass="ui-button-success" icon="pi pi-check" />
+                </div>
+            </h:form>
+        </p:dialog>
+
     </ui:define>
 </ui:composition>
