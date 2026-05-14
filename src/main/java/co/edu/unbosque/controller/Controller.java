@@ -37,7 +37,7 @@ public class Controller implements Serializable {
     private List<Horario> horariosFiltrados; 
     private List<Estudiante> listaEstudiantes;
     private List<VersionHorario> listaVersiones;
-    private List<Horario> detallesVersionSeleccionada; // NUEVO: Para la vista previa
+    private List<Horario> detallesVersionSeleccionada; 
 
     private Docente docenteActual = new Docente();
     private Curso cursoActual = new Curso();
@@ -52,7 +52,7 @@ public class Controller implements Serializable {
     private List<String> diasSeleccionadosParaMotor = new ArrayList<>();
     private String diaFiltro = "";
     private String nombreNuevaVersion = "";
-    private String nombreVersionSeleccionada = ""; // NUEVO: Para el título de la vista previa
+    private String nombreVersionSeleccionada = "";
 
     @PostConstruct
     public void init() { actualizarTodasLasListas(); }
@@ -81,7 +81,7 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // SISTEMA DE VERSIONES (SCRUM-104 y SCRUM-105)
+    // SISTEMA DE VERSIONES (SCRUM-104, 105, 106)
     // ==========================================
     public void cargarVersiones() {
         listaVersiones = new ArrayList<>();
@@ -128,7 +128,6 @@ public class Controller implements Serializable {
         } catch (Exception e) { manejarError(e); }
     }
 
-    // NUEVO MÉTODO: Cargar detalles de una versión específica para la vista previa
     public void verDetallesVersion(VersionHorario v) {
         this.nombreVersionSeleccionada = v.getNombre();
         this.detallesVersionSeleccionada = new ArrayList<>();
@@ -152,6 +151,29 @@ public class Controller implements Serializable {
                 ));
             }
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    // NUEVO MÉTODO: RESTAURAR VERSIÓN
+    public void restaurarVersion(VersionHorario v) {
+        try (Connection conn = getConnection()) {
+            // 1. Limpiar inscripciones para evitar conflictos de llaves foráneas
+            try (PreparedStatement ps1 = conn.prepareStatement("UPDATE estudiantes SET creditos_matriculados = 0")) { ps1.executeUpdate(); }
+            try (PreparedStatement ps2 = conn.prepareStatement("DELETE FROM inscripciones")) { ps2.executeUpdate(); }
+            
+            // 2. Borrar el horario activo
+            try (PreparedStatement ps3 = conn.prepareStatement("DELETE FROM horarios")) { ps3.executeUpdate(); }
+            
+            // 3. Insertar los datos de la versión histórica seleccionada
+            String sqlRestaurar = "INSERT INTO horarios (dia, hora, docente, curso, aula, estado) " +
+                                  "SELECT dia, hora, docente, curso, aula, estado FROM detalles_version_horario WHERE id_version = ?";
+            try (PreparedStatement ps4 = conn.prepareStatement(sqlRestaurar)) {
+                ps4.setInt(1, v.getId());
+                ps4.executeUpdate();
+            }
+            
+            actualizarTodasLasListas(); // Refrescar todo el sistema
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Restaurado", "El horario actual fue reemplazado por la version: " + v.getNombre()));
+        } catch (Exception e) { manejarError(e); }
     }
 
     // ==========================================
@@ -492,7 +514,6 @@ public class Controller implements Serializable {
     public List<VersionHorario> getListaVersiones() { return listaVersiones; } public void setListaVersiones(List<VersionHorario> lv) { this.listaVersiones = lv; }
     public String getNombreNuevaVersion() { return nombreNuevaVersion; } public void setNombreNuevaVersion(String nv) { this.nombreNuevaVersion = nv; }
     
-    // NUEVO GETTER Y SETTER
     public List<Horario> getDetallesVersionSeleccionada() { return detallesVersionSeleccionada; } public void setDetallesVersionSeleccionada(List<Horario> d) { this.detallesVersionSeleccionada = d; }
     public String getNombreVersionSeleccionada() { return nombreVersionSeleccionada; } public void setNombreVersionSeleccionada(String n) { this.nombreVersionSeleccionada = n; }
 
