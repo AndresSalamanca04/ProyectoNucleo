@@ -36,7 +36,8 @@ public class Controller implements Serializable {
     private List<Horario> listaHorarios;
     private List<Horario> horariosFiltrados; 
     private List<Estudiante> listaEstudiantes;
-    private List<VersionHorario> listaVersiones; // NUEVO
+    private List<VersionHorario> listaVersiones;
+    private List<Horario> detallesVersionSeleccionada; // NUEVO: Para la vista previa
 
     private Docente docenteActual = new Docente();
     private Curso cursoActual = new Curso();
@@ -50,7 +51,8 @@ public class Controller implements Serializable {
     private List<String> cursosSeleccionadosParaMotor = new ArrayList<>();
     private List<String> diasSeleccionadosParaMotor = new ArrayList<>();
     private String diaFiltro = "";
-    private String nombreNuevaVersion = ""; // NUEVO
+    private String nombreNuevaVersion = "";
+    private String nombreVersionSeleccionada = ""; // NUEVO: Para el título de la vista previa
 
     @PostConstruct
     public void init() { actualizarTodasLasListas(); }
@@ -97,14 +99,12 @@ public class Controller implements Serializable {
         }
         try (Connection conn = getConnection()) {
             int idVersion = 0;
-            // 1. Crear el registro maestro de la versión
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO versiones_horarios (nombre) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, nombreNuevaVersion);
                 ps.executeUpdate();
                 ResultSet rs = ps.getGeneratedKeys();
                 if (rs.next()) idVersion = rs.getInt(1);
             }
-            // 2. Copiar masivamente los horarios actuales a la tabla de detalles
             if (idVersion > 0) {
                 String sqlCopia = "INSERT INTO detalles_version_horario (id_version, dia, hora, docente, curso, aula, estado) " +
                                   "SELECT ?, dia, hora, docente, curso, aula, estado FROM horarios";
@@ -113,8 +113,8 @@ public class Controller implements Serializable {
                     ps.executeUpdate();
                 }
             }
-            nombreNuevaVersion = ""; // Limpiar campo
-            cargarVersiones(); // Refrescar lista
+            nombreNuevaVersion = ""; 
+            cargarVersiones(); 
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Exito", "Version guardada correctamente."));
         } catch (Exception e) { manejarError(e); }
     }
@@ -126,6 +126,32 @@ public class Controller implements Serializable {
             cargarVersiones();
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Eliminado", "La version historica fue eliminada."));
         } catch (Exception e) { manejarError(e); }
+    }
+
+    // NUEVO MÉTODO: Cargar detalles de una versión específica para la vista previa
+    public void verDetallesVersion(VersionHorario v) {
+        this.nombreVersionSeleccionada = v.getNombre();
+        this.detallesVersionSeleccionada = new ArrayList<>();
+        String sql = "SELECT d.*, c.nombre AS curso_nombre " +
+                     "FROM detalles_version_horario d " +
+                     "LEFT JOIN cursos c ON d.curso = c.codigo " +
+                     "WHERE d.id_version = ?";
+                     
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, v.getId());
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String est = rs.getString("estado");
+                String nombreCurso = rs.getString("curso_nombre"); 
+                if (nombreCurso == null) nombreCurso = rs.getString("curso");
+                
+                detallesVersionSeleccionada.add(new Horario(
+                    rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), 
+                    rs.getString("docente"), rs.getString("curso"), rs.getString("aula"), 
+                    (est != null ? est : "BORRADOR"), nombreCurso, 0, 0
+                ));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     // ==========================================
@@ -318,7 +344,7 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // GESTIÓN DE INSCRIPCIONES Y VALIDACIONES
+    // GESTIÓN DE INSCRIPCIONES
     // ==========================================
     public String inscribirMateria() {
         try {
@@ -463,9 +489,12 @@ public class Controller implements Serializable {
     
     public List<Estudiante> getListaEstudiantes() { return listaEstudiantes; } public void setListaEstudiantes(List<Estudiante> le) { this.listaEstudiantes = le; }
     
-    // GETTER Y SETTER DE VERSIONES
     public List<VersionHorario> getListaVersiones() { return listaVersiones; } public void setListaVersiones(List<VersionHorario> lv) { this.listaVersiones = lv; }
     public String getNombreNuevaVersion() { return nombreNuevaVersion; } public void setNombreNuevaVersion(String nv) { this.nombreNuevaVersion = nv; }
+    
+    // NUEVO GETTER Y SETTER
+    public List<Horario> getDetallesVersionSeleccionada() { return detallesVersionSeleccionada; } public void setDetallesVersionSeleccionada(List<Horario> d) { this.detallesVersionSeleccionada = d; }
+    public String getNombreVersionSeleccionada() { return nombreVersionSeleccionada; } public void setNombreVersionSeleccionada(String n) { this.nombreVersionSeleccionada = n; }
 
     public Docente getDocenteActual() { return docenteActual; } public void setDocenteActual(Docente d) { this.docenteActual = d; }
     public Curso getCursoActual() { return cursoActual; } public void setCursoActual(Curso c) { this.cursoActual = c; }
