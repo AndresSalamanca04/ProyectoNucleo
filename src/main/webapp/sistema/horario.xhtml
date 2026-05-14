@@ -10,7 +10,6 @@
     <ui:define name="content">
         <h:form id="formHorarios">
             
-            <!-- COMPONENTE AÑADIDO: Este es el que recibe los mensajes de éxito/error -->
             <p:growl id="mensajesGlobales" showDetail="true" life="4000" />
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -40,7 +39,6 @@
 
                 <p:commandButton value="Generar" icon="pi pi-bolt" action="#{controller.generarHorariosAutomaticos()}" process="@this cursosMotor diasMotor" update="@form" styleClass="ui-button-warning" />
                 
-                <!-- BOTÓN PARA ABRIR VERSIONES -->
                 <p:commandButton value="Versiones" icon="pi pi-history" oncomplete="PF('dialogoVersiones').show()" process="@this" update=":formVersiones" styleClass="ui-button-info" style="margin-left: auto;" />
             </div>
 
@@ -103,8 +101,8 @@
             </p:confirmDialog>
         </h:form>
 
-        <!-- VENTANA EMERGENTE: HISTORIAL DE VERSIONES -->
-        <p:dialog header="Historial de Versiones" widgetVar="dialogoVersiones" modal="true" responsive="true" width="600">
+        <!-- VENTANA EMERGENTE: LISTADO DE VERSIONES -->
+        <p:dialog header="Historial de Versiones" widgetVar="dialogoVersiones" modal="true" responsive="true" width="700">
             <h:form id="formVersiones">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                     <p:inputText value="#{controller.nombreNuevaVersion}" placeholder="Nombre (Ej: Version Final 2026)" required="true" style="flex: 1;"/>
@@ -118,11 +116,30 @@
                     <p:column headerText="Fecha de Creacion" style="width: 150px;">
                         <h:outputText value="#{ver.fechaFormateada}" />
                     </p:column>
-                    <p:column headerText="Accion" style="width: 80px; text-align: center;">
-                        <p:commandButton icon="pi pi-trash" action="#{controller.eliminarVersion(ver)}" update="@form" title="Eliminar Version" styleClass="ui-button-danger ui-button-flat">
+                    <p:column headerText="Acciones" style="width: 120px; text-align: center;">
+                        <!-- CORRECCIÓN AQUÍ: Se añadió process="@this" -->
+                        <p:commandButton icon="pi pi-eye" action="#{controller.verDetallesVersion(ver)}" process="@this" update=":formPreviewVersion" oncomplete="PF('dialogoPreviewVersion').show()" title="Ver Detalles" styleClass="ui-button-info ui-button-flat" style="margin-right: 5px;"/>
+                        
+                        <!-- CORRECCIÓN AQUÍ: Se añadió process="@this" -->
+                        <p:commandButton icon="pi pi-trash" action="#{controller.eliminarVersion(ver)}" process="@this" update="@form" title="Eliminar Version" styleClass="ui-button-danger ui-button-flat">
                             <p:confirm header="Confirmacion" message="Desea eliminar este registro historico?" icon="pi pi-exclamation-triangle" />
                         </p:commandButton>
                     </p:column>
+                </p:dataTable>
+            </h:form>
+        </p:dialog>
+
+        <!-- VISTA PREVIA DEL HORARIO HISTÓRICO -->
+        <p:dialog header="Vista Previa: #{controller.nombreVersionSeleccionada}" widgetVar="dialogoPreviewVersion" modal="true" responsive="true" width="850">
+            <h:form id="formPreviewVersion">
+                <p:dataTable value="#{controller.detallesVersionSeleccionada}" var="det" emptyMessage="No hay clases en esta version." paginator="true" rows="8">
+                    <p:column headerText="Estado" style="width: 110px;">
+                        <h:outputText value="#{det.estado}" style="padding: 4px; border-radius: 4px; font-weight: bold; color: white; background-color: #{det.estado == 'PUBLICADO' ? '#27ae60' : '#f39c12'};" />
+                    </p:column>
+                    <p:column headerText="Dia"><h:outputText value="#{det.dia}" style="font-weight: bold;"/></p:column>
+                    <p:column headerText="Hora"><h:outputText value="#{det.hora}" /></p:column>
+                    <p:column headerText="Materia"><h:outputText value="#{det.cursoNombre}" style="color: #e67e22;"/></p:column>
+                    <p:column headerText="Aula / Docente"><h:outputText value="#{det.aula} - #{det.docente}" /></p:column>
                 </p:dataTable>
             </h:form>
         </p:dialog>
