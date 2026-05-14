@@ -36,6 +36,7 @@ public class Controller implements Serializable {
     private List<Horario> listaHorarios;
     private List<Horario> horariosFiltrados; 
     private List<Estudiante> listaEstudiantes;
+    private List<VersionHorario> listaVersiones; // NUEVO
 
     private Docente docenteActual = new Docente();
     private Curso cursoActual = new Curso();
@@ -49,6 +50,7 @@ public class Controller implements Serializable {
     private List<String> cursosSeleccionadosParaMotor = new ArrayList<>();
     private List<String> diasSeleccionadosParaMotor = new ArrayList<>();
     private String diaFiltro = "";
+    private String nombreNuevaVersion = ""; // NUEVO
 
     @PostConstruct
     public void init() { actualizarTodasLasListas(); }
@@ -59,7 +61,7 @@ public class Controller implements Serializable {
     }
 
     public void actualizarTodasLasListas() {
-        cargarDocentes(); cargarCursos(); cargarAulas(); cargarHorarios(); cargarEstudiantes();
+        cargarDocentes(); cargarCursos(); cargarAulas(); cargarHorarios(); cargarEstudiantes(); cargarVersiones();
     }
 
     public String login() {
@@ -77,7 +79,57 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // MOTOR DE GENERACIÓN AUTOMÁTICA (AULAS Y CRUCES)
+    // SISTEMA DE VERSIONES (SCRUM-104 y SCRUM-105)
+    // ==========================================
+    public void cargarVersiones() {
+        listaVersiones = new ArrayList<>();
+        try (Connection conn = getConnection(); Statement st = conn.createStatement(); ResultSet rs = st.executeQuery("SELECT * FROM versiones_horarios ORDER BY fecha_creacion DESC")) {
+            while (rs.next()) {
+                listaVersiones.add(new VersionHorario(rs.getInt("id"), rs.getString("nombre"), rs.getTimestamp("fecha_creacion")));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void guardarVersionActual() {
+        if (nombreNuevaVersion == null || nombreNuevaVersion.trim().isEmpty()) {
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Aviso", "Por favor ingrese un nombre para la version."));
+            return;
+        }
+        try (Connection conn = getConnection()) {
+            int idVersion = 0;
+            // 1. Crear el registro maestro de la versión
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO versiones_horarios (nombre) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, nombreNuevaVersion);
+                ps.executeUpdate();
+                ResultSet rs = ps.getGeneratedKeys();
+                if (rs.next()) idVersion = rs.getInt(1);
+            }
+            // 2. Copiar masivamente los horarios actuales a la tabla de detalles
+            if (idVersion > 0) {
+                String sqlCopia = "INSERT INTO detalles_version_horario (id_version, dia, hora, docente, curso, aula, estado) " +
+                                  "SELECT ?, dia, hora, docente, curso, aula, estado FROM horarios";
+                try (PreparedStatement ps = conn.prepareStatement(sqlCopia)) {
+                    ps.setInt(1, idVersion);
+                    ps.executeUpdate();
+                }
+            }
+            nombreNuevaVersion = ""; // Limpiar campo
+            cargarVersiones(); // Refrescar lista
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Exito", "Version guardada correctamente."));
+        } catch (Exception e) { manejarError(e); }
+    }
+
+    public void eliminarVersion(VersionHorario v) {
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("DELETE FROM versiones_horarios WHERE id=?")) {
+            ps.setInt(1, v.getId());
+            ps.executeUpdate();
+            cargarVersiones();
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Eliminado", "La version historica fue eliminada."));
+        } catch (Exception e) { manejarError(e); }
+    }
+
+    // ==========================================
+    // MOTOR DE GENERACIÓN AUTOMÁTICA
     // ==========================================
     public void generarHorariosAutomaticos() {
         if (cursosSeleccionadosParaMotor == null || cursosSeleccionadosParaMotor.isEmpty() ||
@@ -126,7 +178,7 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // NOTIFICACIONES POR CORREO ELECTRÓNICO
+    // NOTIFICACIONES POR CORREO
     // ==========================================
     private void enviarCorreoGlobal(String asunto, String contenido) {
         new Thread(() -> {
@@ -208,9 +260,6 @@ public class Controller implements Serializable {
         enviarCorreoGlobal(asunto, contenido);
     }
 
-    // ==========================================
-    // PUBLICAR, ACTUALIZAR Y BORRAR HORARIOS
-    // ==========================================
     public void publicarHorario(Horario h) {
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE horarios SET estado = 'PUBLICADO' WHERE id = ?")) {
             ps.setInt(1, h.getId()); ps.executeUpdate(); 
@@ -225,7 +274,6 @@ public class Controller implements Serializable {
         return "editarHorario?faces-redirect=true"; 
     }
 
-    // MÉTODO AGREGADO: ACTUALIZAR HORARIO
     public String actualizarHorario() { 
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE horarios SET docente=?, curso=? WHERE dia=? AND hora=? AND aula=?")) { 
             ps.setString(1, horarioActual.getDocente()); 
@@ -235,7 +283,6 @@ public class Controller implements Serializable {
             ps.setString(5, horarioActual.getAula()); 
             ps.executeUpdate(); 
             
-            // Si el horario ya era público, notificar la modificación
             if ("PUBLICADO".equals(horarioActual.getEstado())) {
                 notificarCambiosHorario(horarioActual, "MODIFICADO");
             }
@@ -248,36 +295,30 @@ public class Controller implements Serializable {
     public void borrarHorario(Horario h) {
         try (Connection conn = getConnection()) {
             boolean borrado = false;
-            
             try (PreparedStatement ps = conn.prepareStatement("DELETE FROM horarios WHERE id=?")) { 
                 ps.setInt(1, h.getId()); 
                 if (ps.executeUpdate() > 0) borrado = true; 
             }
-            
             if (!borrado) {
                 try (PreparedStatement ps2 = conn.prepareStatement("DELETE FROM horarios WHERE dia=? AND hora=? AND aula=?")) {
-                    ps2.setString(1, h.getDia()); 
-                    ps2.setString(2, h.getHora()); 
-                    ps2.setString(3, h.getAula());
+                    ps2.setString(1, h.getDia()); ps2.setString(2, h.getHora()); ps2.setString(3, h.getAula());
                     if (ps2.executeUpdate() > 0) borrado = true;
                 }
             }
-            
             if (borrado) { 
-                // Si se eliminó exitosamente y estaba público, notificar a los estudiantes
                 if ("PUBLICADO".equals(h.getEstado())) {
                     notificarCambiosHorario(h, "ELIMINADO");
                 }
                 cargarHorarios(); 
                 FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Eliminado", "La clase se elimino correctamente."));
             } else { 
-                FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Fallo", "No se pudo eliminar la clase (Datos no encontrados).")); 
+                FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Fallo", "No se pudo eliminar la clase.")); 
             }
         } catch (Exception e) { manejarError(e); }
     }
 
     // ==========================================
-    // GESTIÓN DE INSCRIPCIONES
+    // GESTIÓN DE INSCRIPCIONES Y VALIDACIONES
     // ==========================================
     public String inscribirMateria() {
         try {
@@ -321,9 +362,6 @@ public class Controller implements Serializable {
         return inscritas;
     }
 
-    // ==========================================
-    // VALIDACIONES DE NEGOCIO
-    // ==========================================
     private boolean validarCruceHorarioEstudiante(String documento, int idHorarioNuevo) throws Exception {
         String diaNuevo = "", horaNueva = "";
         try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT dia, hora FROM horarios WHERE id = ?")) {
@@ -337,7 +375,6 @@ public class Controller implements Serializable {
     }
 
     private boolean validarAforo(int idHorario) throws Exception { int cap = 0, ins = 0; try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT a.capacidad FROM horarios h JOIN aulas a ON h.aula = a.numero WHERE h.id = ?")) { ps.setInt(1, idHorario); ResultSet rs = ps.executeQuery(); if (rs.next()) cap = rs.getInt(1); } try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM inscripciones WHERE id_horario = ?")) { ps.setInt(1, idHorario); ResultSet rs = ps.executeQuery(); if (rs.next()) ins = rs.getInt(1); } return ins < cap; }
-    private boolean validarPrerrequisitos(String documento, String codigoCurso) throws Exception { return true; } 
     private boolean validarCargaAcademica(String doc, String cod) throws Exception { int credCurso = 0, credAct = 0; try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT creditos FROM cursos WHERE codigo = ?")) { ps.setString(1, cod); ResultSet rs = ps.executeQuery(); if (rs.next()) credCurso = rs.getInt(1); } try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement("SELECT creditos_matriculados FROM estudiantes WHERE documento = ?")) { ps.setString(1, doc); ResultSet rs = ps.executeQuery(); if (rs.next()) credAct = rs.getInt(1); } return (credAct + credCurso) <= 18; }
     private boolean existeCruce(String col, String val, String dia, String hora) { String sql = "SELECT COUNT(*) FROM horarios WHERE " + col + " = ? AND dia = ? AND hora = ?"; try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) { ps.setString(1, val); ps.setString(2, dia); ps.setString(3, hora); ResultSet rs = ps.executeQuery(); if (rs.next()) return rs.getInt(1) > 0; } catch (Exception e) { e.printStackTrace(); } return false; }
     private String manejarError(Exception e) { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "Error", e.getMessage())); return null; }
@@ -426,12 +463,16 @@ public class Controller implements Serializable {
     
     public List<Estudiante> getListaEstudiantes() { return listaEstudiantes; } public void setListaEstudiantes(List<Estudiante> le) { this.listaEstudiantes = le; }
     
+    // GETTER Y SETTER DE VERSIONES
+    public List<VersionHorario> getListaVersiones() { return listaVersiones; } public void setListaVersiones(List<VersionHorario> lv) { this.listaVersiones = lv; }
+    public String getNombreNuevaVersion() { return nombreNuevaVersion; } public void setNombreNuevaVersion(String nv) { this.nombreNuevaVersion = nv; }
+
     public Docente getDocenteActual() { return docenteActual; } public void setDocenteActual(Docente d) { this.docenteActual = d; }
     public Curso getCursoActual() { return cursoActual; } public void setCursoActual(Curso c) { this.cursoActual = c; }
     public Aula getAulaActual() { return aulaActual; } public void setAulaActual(Aula a) { this.aulaActual = a; }
     public Horario getHorarioActual() { return horarioActual; } public void setHorarioActual(Horario h) { this.horarioActual = h; }
     public Estudiante getEstudianteActual() { return estudianteActual; } public void setEstudianteActual(Estudiante e) { this.estudianteActual = e; }
-
+    
     public String getEstudianteSeleccionadoId() { return estudianteSeleccionadoId; } public void setEstudianteSeleccionadoId(String e) { this.estudianteSeleccionadoId = e; }
     public int getHorarioSeleccionadoId() { return horarioSeleccionadoId; } public void setHorarioSeleccionadoId(int h) { this.horarioSeleccionadoId = h; }
     
