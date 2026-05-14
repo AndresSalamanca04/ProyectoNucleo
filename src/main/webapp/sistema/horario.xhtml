@@ -102,7 +102,7 @@
         </h:form>
 
         <!-- VENTANA EMERGENTE: LISTADO DE VERSIONES -->
-        <p:dialog header="Historial de Versiones" widgetVar="dialogoVersiones" modal="true" responsive="true" width="700">
+        <p:dialog header="Historial de Versiones" widgetVar="dialogoVersiones" modal="true" responsive="true" width="750">
             <h:form id="formVersiones">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                     <p:inputText value="#{controller.nombreNuevaVersion}" placeholder="Nombre (Ej: Version Final 2026)" required="true" style="flex: 1;"/>
@@ -113,16 +113,22 @@
                     <p:column headerText="Nombre de Version">
                         <h:outputText value="#{ver.nombre}" style="font-weight: bold;"/>
                     </p:column>
-                    <p:column headerText="Fecha de Creacion" style="width: 150px;">
+                    <p:column headerText="Fecha" style="width: 140px;">
                         <h:outputText value="#{ver.fechaFormateada}" />
                     </p:column>
-                    <p:column headerText="Acciones" style="width: 120px; text-align: center;">
-                        <!-- CORRECCIÓN AQUÍ: Se añadió process="@this" -->
+                    <p:column headerText="Acciones" style="width: 160px; text-align: center;">
+                        
+                        <!-- BOTÓN: Ver Vista Previa -->
                         <p:commandButton icon="pi pi-eye" action="#{controller.verDetallesVersion(ver)}" process="@this" update=":formPreviewVersion" oncomplete="PF('dialogoPreviewVersion').show()" title="Ver Detalles" styleClass="ui-button-info ui-button-flat" style="margin-right: 5px;"/>
                         
-                        <!-- CORRECCIÓN AQUÍ: Se añadió process="@this" -->
+                        <!-- NUEVO BOTÓN: Restaurar Versión -->
+                        <p:commandButton icon="pi pi-refresh" action="#{controller.restaurarVersion(ver)}" process="@this" update=":formHorarios :formHorarios:mensajesGlobales" oncomplete="PF('dialogoVersiones').hide()" title="Restaurar esta Version" styleClass="ui-button-warning ui-button-flat" style="margin-right: 5px;">
+                            <p:confirm header="Confirmacion Critica" message="¿Sobrescribir el horario actual con esta version? (Las inscripciones actuales se perderan)" icon="pi pi-exclamation-triangle" />
+                        </p:commandButton>
+                        
+                        <!-- BOTÓN: Eliminar Version -->
                         <p:commandButton icon="pi pi-trash" action="#{controller.eliminarVersion(ver)}" process="@this" update="@form" title="Eliminar Version" styleClass="ui-button-danger ui-button-flat">
-                            <p:confirm header="Confirmacion" message="Desea eliminar este registro historico?" icon="pi pi-exclamation-triangle" />
+                            <p:confirm header="Confirmacion" message="¿Desea eliminar este registro historico?" icon="pi pi-exclamation-triangle" />
                         </p:commandButton>
                     </p:column>
                 </p:dataTable>
