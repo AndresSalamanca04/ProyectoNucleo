@@ -61,6 +61,14 @@
                                  styleClass="ui-button-success" 
                                  style="width: 100%; padding: 10px; font-size: 1.1rem; border-radius: 6px;" />
                                  
+                <p:divider style="margin: 15px 0;" />
+                
+                <p:commandButton value="Consultar como Estudiante" action="#{controller.irPortalEstudiante()}" 
+                                 process="@this" immediate="true"
+                                 icon="pi pi-users" 
+                                 styleClass="ui-button-warning" 
+                                 style="width: 100%; padding: 10px; font-size: 1.1rem; border-radius: 6px;" />
+                                 
             </h:panelGrid>
         </h:form>
     </p:panel>

@@ -54,6 +54,11 @@ public class Controller implements Serializable {
     private String nombreNuevaVersion = "";
     private String nombreVersionSeleccionada = "";
 
+    // NUEVAS VARIABLES PARA EL PORTAL DE ESTUDIANTE
+    private String busquedaEstudiante;
+    private Estudiante estudianteBuscado;
+    private List<Horario> horarioEstudianteBuscado;
+
     @PostConstruct
     public void init() { actualizarTodasLasListas(); }
 
@@ -81,7 +86,42 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // SISTEMA DE VERSIONES (SCRUM-104, 105, 106)
+    // PORTAL DE ESTUDIANTES (SCRUM-107 y 108)
+    // ==========================================
+    public String irPortalEstudiante() {
+        this.busquedaEstudiante = "";
+        this.estudianteBuscado = null;
+        this.horarioEstudianteBuscado = new ArrayList<>();
+        return "portalEstudiante?faces-redirect=true";
+    }
+
+    public void buscarEstudianteParaHorario() {
+        if (busquedaEstudiante == null || busquedaEstudiante.trim().isEmpty()) {
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Aviso", "Ingrese su nombre o documento."));
+            estudianteBuscado = null;
+            horarioEstudianteBuscado = null;
+            return;
+        }
+        
+        String filtro = busquedaEstudiante.toLowerCase().trim();
+        
+        // Filtro por nombre o documento
+        estudianteBuscado = listaEstudiantes.stream()
+            .filter(e -> e.getNombre().toLowerCase().contains(filtro) || e.getDocumento().equals(filtro))
+            .findFirst()
+            .orElse(null);
+            
+        if (estudianteBuscado != null) {
+            horarioEstudianteBuscado = getMateriasInscritas(estudianteBuscado.getDocumento());
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Exito", "Mostrando el horario de " + estudianteBuscado.getNombre()));
+        } else {
+            horarioEstudianteBuscado = null;
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "No encontrado", "No se encontro un estudiante con esos datos."));
+        }
+    }
+
+    // ==========================================
+    // SISTEMA DE VERSIONES
     // ==========================================
     public void cargarVersiones() {
         listaVersiones = new ArrayList<>();
@@ -131,11 +171,7 @@ public class Controller implements Serializable {
     public void verDetallesVersion(VersionHorario v) {
         this.nombreVersionSeleccionada = v.getNombre();
         this.detallesVersionSeleccionada = new ArrayList<>();
-        String sql = "SELECT d.*, c.nombre AS curso_nombre " +
-                     "FROM detalles_version_horario d " +
-                     "LEFT JOIN cursos c ON d.curso = c.codigo " +
-                     "WHERE d.id_version = ?";
-                     
+        String sql = "SELECT d.*, c.nombre AS curso_nombre FROM detalles_version_horario d LEFT JOIN cursos c ON d.curso = c.codigo WHERE d.id_version = ?";
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, v.getId());
             ResultSet rs = ps.executeQuery();
@@ -143,35 +179,19 @@ public class Controller implements Serializable {
                 String est = rs.getString("estado");
                 String nombreCurso = rs.getString("curso_nombre"); 
                 if (nombreCurso == null) nombreCurso = rs.getString("curso");
-                
-                detallesVersionSeleccionada.add(new Horario(
-                    rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), 
-                    rs.getString("docente"), rs.getString("curso"), rs.getString("aula"), 
-                    (est != null ? est : "BORRADOR"), nombreCurso, 0, 0
-                ));
+                detallesVersionSeleccionada.add(new Horario(rs.getInt("id"), rs.getString("dia"), rs.getString("hora"), rs.getString("docente"), rs.getString("curso"), rs.getString("aula"), (est != null ? est : "BORRADOR"), nombreCurso, 0, 0));
             }
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    // NUEVO MÉTODO: RESTAURAR VERSIÓN
     public void restaurarVersion(VersionHorario v) {
         try (Connection conn = getConnection()) {
-            // 1. Limpiar inscripciones para evitar conflictos de llaves foráneas
             try (PreparedStatement ps1 = conn.prepareStatement("UPDATE estudiantes SET creditos_matriculados = 0")) { ps1.executeUpdate(); }
             try (PreparedStatement ps2 = conn.prepareStatement("DELETE FROM inscripciones")) { ps2.executeUpdate(); }
-            
-            // 2. Borrar el horario activo
             try (PreparedStatement ps3 = conn.prepareStatement("DELETE FROM horarios")) { ps3.executeUpdate(); }
-            
-            // 3. Insertar los datos de la versión histórica seleccionada
-            String sqlRestaurar = "INSERT INTO horarios (dia, hora, docente, curso, aula, estado) " +
-                                  "SELECT dia, hora, docente, curso, aula, estado FROM detalles_version_horario WHERE id_version = ?";
-            try (PreparedStatement ps4 = conn.prepareStatement(sqlRestaurar)) {
-                ps4.setInt(1, v.getId());
-                ps4.executeUpdate();
-            }
-            
-            actualizarTodasLasListas(); // Refrescar todo el sistema
+            String sqlRestaurar = "INSERT INTO horarios (dia, hora, docente, curso, aula, estado) SELECT dia, hora, docente, curso, aula, estado FROM detalles_version_horario WHERE id_version = ?";
+            try (PreparedStatement ps4 = conn.prepareStatement(sqlRestaurar)) { ps4.setInt(1, v.getId()); ps4.executeUpdate(); }
+            actualizarTodasLasListas(); 
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Restaurado", "El horario actual fue reemplazado por la version: " + v.getNombre()));
         } catch (Exception e) { manejarError(e); }
     }
@@ -180,8 +200,7 @@ public class Controller implements Serializable {
     // MOTOR DE GENERACIÓN AUTOMÁTICA
     // ==========================================
     public void generarHorariosAutomaticos() {
-        if (cursosSeleccionadosParaMotor == null || cursosSeleccionadosParaMotor.isEmpty() ||
-            diasSeleccionadosParaMotor == null || diasSeleccionadosParaMotor.isEmpty()) {
+        if (cursosSeleccionadosParaMotor == null || cursosSeleccionadosParaMotor.isEmpty() || diasSeleccionadosParaMotor == null || diasSeleccionadosParaMotor.isEmpty()) {
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Faltan Parametros", "Debe seleccionar al menos una materia y un dia."));
             return;
         }
@@ -189,7 +208,6 @@ public class Controller implements Serializable {
         String[] horasPosibles = {"08:00 - 10:00", "10:00 - 12:00", "14:00 - 16:00", "16:00 - 18:00"};
         int sesionesAsignadas = 0;
         List<Curso> cursosAProcesar = listaCursos.stream().filter(c -> cursosSeleccionadosParaMotor.contains(c.getCodigo())).collect(Collectors.toList());
-        
         List<Aula> aulasOptimizadas = new ArrayList<>(listaAulas);
         aulasOptimizadas.sort(Comparator.comparingInt(Aula::getCapacidad));
 
@@ -248,9 +266,7 @@ public class Controller implements Serializable {
 
                 Session session = Session.getInstance(props, new Authenticator() {
                     @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(remitente, password);
-                    }
+                    protected PasswordAuthentication getPasswordAuthentication() { return new PasswordAuthentication(remitente, password); }
                 });
 
                 Message message = new MimeMessage(session);
@@ -258,9 +274,7 @@ public class Controller implements Serializable {
                 message.setSubject(asunto);
                 message.setText(contenido);
                 
-                for (String correo : correos) {
-                    message.addRecipient(Message.RecipientType.BCC, new InternetAddress(correo));
-                }
+                for (String correo : correos) { message.addRecipient(Message.RecipientType.BCC, new InternetAddress(correo)); }
                 Transport.send(message);
             } catch (Exception e) { e.printStackTrace(); }
         }).start();
@@ -268,100 +282,51 @@ public class Controller implements Serializable {
 
     private void notificarEstudiantesNuevoHorario(Horario h) {
         String asunto = "Nueva Clase Disponible: " + h.getCursoNombre();
-        String contenido = "Hola,\n\nSe ha habilitado un nuevo horario en el sistema:\n\n"
-                + "Materia: " + h.getCursoNombre() + "\n"
-                + "Docente: " + h.getDocente() + "\n"
-                + "Dia: " + h.getDia() + "\n"
-                + "Hora: " + h.getHora() + "\n"
-                + "Aula: " + h.getAula() + "\n\n"
-                + "Ya puedes ingresar al portal para realizar tu inscripcion.\n\n"
-                + "Saludos,\nAdministracion El Bosque";
+        String contenido = "Hola,\n\nSe ha habilitado un nuevo horario en el sistema:\n\n" + "Materia: " + h.getCursoNombre() + "\n" + "Docente: " + h.getDocente() + "\n" + "Dia: " + h.getDia() + "\n" + "Hora: " + h.getHora() + "\n" + "Aula: " + h.getAula() + "\n\n" + "Ya puedes ingresar al portal para realizar tu inscripcion.\n\n" + "Saludos,\nAdministracion El Bosque";
         enviarCorreoGlobal(asunto, contenido);
     }
 
     private void notificarCambiosHorario(Horario h, String tipo) {
         String nombreMateria = (h.getCursoNombre() != null) ? h.getCursoNombre() : h.getCurso();
-        String asunto = "";
-        String contenido = "";
-
+        String asunto = ""; String contenido = "";
         if (tipo.equals("MODIFICADO")) {
             asunto = "Cambio en el Horario: " + nombreMateria;
-            contenido = "Hola,\n\nTe informamos que ha habido una modificacion en un horario publicado:\n\n"
-                    + "Materia: " + nombreMateria + "\n"
-                    + "Docente: " + h.getDocente() + "\n"
-                    + "Dia: " + h.getDia() + "\n"
-                    + "Hora: " + h.getHora() + "\n"
-                    + "Aula: " + h.getAula() + "\n\n"
-                    + "Por favor revisa el portal para ver los detalles actualizados.\n\n"
-                    + "Saludos,\nAdministracion El Bosque";
+            contenido = "Hola,\n\nTe informamos que ha habido una modificacion en un horario publicado:\n\n" + "Materia: " + nombreMateria + "\n" + "Docente: " + h.getDocente() + "\n" + "Dia: " + h.getDia() + "\n" + "Hora: " + h.getHora() + "\n" + "Aula: " + h.getAula() + "\n\n" + "Por favor revisa el portal para ver los detalles actualizados.\n\n" + "Saludos,\nAdministracion El Bosque";
         } else if (tipo.equals("ELIMINADO")) {
             asunto = "Horario Cancelado: " + nombreMateria;
-            contenido = "Hola,\n\nTe informamos que el siguiente horario ha sido cancelado y eliminado del sistema:\n\n"
-                    + "Materia: " + nombreMateria + "\n"
-                    + "Docente: " + h.getDocente() + "\n"
-                    + "Dia: " + h.getDia() + "\n"
-                    + "Hora: " + h.getHora() + "\n"
-                    + "Aula: " + h.getAula() + "\n\n"
-                    + "Si estabas inscrito en este horario, la materia ha sido retirada de tu carga academica.\n\n"
-                    + "Saludos,\nAdministracion El Bosque";
+            contenido = "Hola,\n\nTe informamos que el siguiente horario ha sido cancelado y eliminado del sistema:\n\n" + "Materia: " + nombreMateria + "\n" + "Docente: " + h.getDocente() + "\n" + "Dia: " + h.getDia() + "\n" + "Hora: " + h.getHora() + "\n" + "Aula: " + h.getAula() + "\n\n" + "Si estabas inscrito en este horario, la materia ha sido retirada de tu carga academica.\n\n" + "Saludos,\nAdministracion El Bosque";
         }
         enviarCorreoGlobal(asunto, contenido);
     }
 
     public void publicarHorario(Horario h) {
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE horarios SET estado = 'PUBLICADO' WHERE id = ?")) {
-            ps.setInt(1, h.getId()); ps.executeUpdate(); 
-            cargarHorarios();
-            notificarEstudiantesNuevoHorario(h);
+            ps.setInt(1, h.getId()); ps.executeUpdate(); cargarHorarios(); notificarEstudiantesNuevoHorario(h);
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Oficializado", "El horario es publico y se estan enviando las notificaciones."));
         } catch (Exception e) { manejarError(e); }
     }
 
-    public String editarHorario(Horario h) { 
-        this.horarioActual = h; 
-        return "editarHorario?faces-redirect=true"; 
-    }
+    public String editarHorario(Horario h) { this.horarioActual = h; return "editarHorario?faces-redirect=true"; }
 
     public String actualizarHorario() { 
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("UPDATE horarios SET docente=?, curso=? WHERE dia=? AND hora=? AND aula=?")) { 
-            ps.setString(1, horarioActual.getDocente()); 
-            ps.setString(2, horarioActual.getCurso()); 
-            ps.setString(3, horarioActual.getDia()); 
-            ps.setString(4, horarioActual.getHora()); 
-            ps.setString(5, horarioActual.getAula()); 
-            ps.executeUpdate(); 
-            
-            if ("PUBLICADO".equals(horarioActual.getEstado())) {
-                notificarCambiosHorario(horarioActual, "MODIFICADO");
-            }
-            
-            cargarHorarios(); 
-            return "horario?faces-redirect=true"; 
+            ps.setString(1, horarioActual.getDocente()); ps.setString(2, horarioActual.getCurso()); ps.setString(3, horarioActual.getDia()); ps.setString(4, horarioActual.getHora()); ps.setString(5, horarioActual.getAula()); ps.executeUpdate(); 
+            if ("PUBLICADO".equals(horarioActual.getEstado())) { notificarCambiosHorario(horarioActual, "MODIFICADO"); }
+            cargarHorarios(); return "horario?faces-redirect=true"; 
         } catch (Exception e) { return manejarError(e); } 
     }
 
     public void borrarHorario(Horario h) {
         try (Connection conn = getConnection()) {
             boolean borrado = false;
-            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM horarios WHERE id=?")) { 
-                ps.setInt(1, h.getId()); 
-                if (ps.executeUpdate() > 0) borrado = true; 
-            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM horarios WHERE id=?")) { ps.setInt(1, h.getId()); if (ps.executeUpdate() > 0) borrado = true; }
             if (!borrado) {
-                try (PreparedStatement ps2 = conn.prepareStatement("DELETE FROM horarios WHERE dia=? AND hora=? AND aula=?")) {
-                    ps2.setString(1, h.getDia()); ps2.setString(2, h.getHora()); ps2.setString(3, h.getAula());
-                    if (ps2.executeUpdate() > 0) borrado = true;
-                }
+                try (PreparedStatement ps2 = conn.prepareStatement("DELETE FROM horarios WHERE dia=? AND hora=? AND aula=?")) { ps2.setString(1, h.getDia()); ps2.setString(2, h.getHora()); ps2.setString(3, h.getAula()); if (ps2.executeUpdate() > 0) borrado = true; }
             }
             if (borrado) { 
-                if ("PUBLICADO".equals(h.getEstado())) {
-                    notificarCambiosHorario(h, "ELIMINADO");
-                }
-                cargarHorarios(); 
-                FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Eliminado", "La clase se elimino correctamente."));
-            } else { 
-                FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Fallo", "No se pudo eliminar la clase.")); 
-            }
+                if ("PUBLICADO".equals(h.getEstado())) { notificarCambiosHorario(h, "ELIMINADO"); }
+                cargarHorarios(); FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Eliminado", "La clase se elimino correctamente."));
+            } else { FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Fallo", "No se pudo eliminar la clase.")); }
         } catch (Exception e) { manejarError(e); }
     }
 
@@ -391,9 +356,7 @@ public class Controller implements Serializable {
     public void retirarMateria(String documento, Horario h) {
         try (Connection conn = getConnection()) {
             int creditos = 0;
-            try (PreparedStatement ps = conn.prepareStatement("SELECT creditos FROM cursos WHERE codigo = ?")) {
-                ps.setString(1, h.getCurso()); ResultSet rs = ps.executeQuery(); if (rs.next()) creditos = rs.getInt(1);
-            }
+            try (PreparedStatement ps = conn.prepareStatement("SELECT creditos FROM cursos WHERE codigo = ?")) { ps.setString(1, h.getCurso()); ResultSet rs = ps.executeQuery(); if (rs.next()) creditos = rs.getInt(1); }
             try (PreparedStatement ps = conn.prepareStatement("DELETE FROM inscripciones WHERE documento_estudiante = ? AND id_horario = ?")) { ps.setString(1, documento); ps.setInt(2, h.getId()); ps.executeUpdate(); }
             try (PreparedStatement ps = conn.prepareStatement("UPDATE estudiantes SET creditos_matriculados = creditos_matriculados - ? WHERE documento = ?")) { ps.setInt(1, creditos); ps.setString(2, documento); ps.executeUpdate(); }
             actualizarTodasLasListas();
@@ -530,4 +493,8 @@ public class Controller implements Serializable {
     public List<String> getDiasSeleccionadosParaMotor() { return diasSeleccionadosParaMotor; } public void setDiasSeleccionadosParaMotor(List<String> d) { this.diasSeleccionadosParaMotor = d; }
     
     public String getDiaFiltro() { return diaFiltro; } public void setDiaFiltro(String diaFiltro) { this.diaFiltro = diaFiltro; }
+
+    public String getBusquedaEstudiante() { return busquedaEstudiante; } public void setBusquedaEstudiante(String busquedaEstudiante) { this.busquedaEstudiante = busquedaEstudiante; }
+    public Estudiante getEstudianteBuscado() { return estudianteBuscado; } public void setEstudianteBuscado(Estudiante estudianteBuscado) { this.estudianteBuscado = estudianteBuscado; }
+    public List<Horario> getHorarioEstudianteBuscado() { return horarioEstudianteBuscado; } public void setHorarioEstudianteBuscado(List<Horario> horarioEstudianteBuscado) { this.horarioEstudianteBuscado = horarioEstudianteBuscado; }
 }

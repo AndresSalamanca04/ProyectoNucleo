@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://xmlns.jcp.org/jsf/html"
+      xmlns:f="http://xmlns.jcp.org/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+    <title>Portal del Estudiante</title>
+    <style>
+        body { 
+            background: url("#{resource['images/interfaz_1.jpg']}") no-repeat center center fixed !important;
+            background-size: cover !important;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .portal-panel { 
+            width: 850px; 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5); 
+            border: none;
+            background-color: rgba(255, 255, 255, 0.93) !important; 
+            border-radius: 12px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .ui-panel-titlebar {
+            background-color: rgba(44, 62, 80, 0.95) !important;
+            color: white !important;
+            text-align: center;
+            font-size: 1.3rem;
+            padding: 15px !important;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            border: none !important;
+        }
+        
+        .ui-panel-content {
+            background: transparent !important;
+            border: none !important;
+            padding: 25px !important;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            background: rgba(44, 62, 80, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #bdc3c7;
+        }
+        
+        .search-container .ui-inputtext {
+            flex: 1;
+            padding: 10px;
+            font-size: 1.1rem;
+        }
+    </style>
+</h:head>
+
+<h:body>
+    <p:panel header="Portal de Consulta Academica" styleClass="portal-panel">
+        
+        <p style="text-align: center; color: #555; font-size: 1.1rem; margin-top: 0; margin-bottom: 20px;">
+            Consulta tu horario personalizado ingresando tu nombre o documento.
+        </p>
+
+        <h:form id="formEstudiante">
+            <p:growl id="msgEstudiante" showDetail="true" life="4000" />
+
+            <div class="search-container">
+                <p:inputText value="#{controller.busquedaEstudiante}" placeholder="Ej: Andres Felipe Salamanca" />
+                <p:commandButton value="Buscar Horario" action="#{controller.buscarEstudianteParaHorario()}" update="formEstudiante" icon="pi pi-search" styleClass="ui-button-primary" style="padding: 5px 15px; font-size: 1.1rem;"/>
+            </div>
+
+            <p:panel rendered="#{controller.estudianteBuscado != null}" style="border: none; background: transparent; padding: 0;">
+                
+                <h3 style="color: #27ae60; margin-bottom: 10px; border-bottom: 2px solid #27ae60; padding-bottom: 8px;">
+                    <i class="pi pi-user" style="margin-right: 8px;"></i> Horario de: <h:outputText value="#{controller.estudianteBuscado.nombre}" />
+                </h3>
+                
+                <div style="background: rgba(255,255,255,0.7); padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; color: #34495e; font-size: 1.05rem;">
+                    <strong>Carrera:</strong> <h:outputText value="#{controller.estudianteBuscado.carrera}" /> | 
+                    <strong>Creditos matriculados:</strong> <h:outputText value="#{controller.estudianteBuscado.creditosMatriculados}" />
+                </div>
+
+                <p:dataTable value="#{controller.horarioEstudianteBuscado}" var="mat" emptyMessage="Actualmente no tienes materias inscritas en el sistema." styleClass="tabla-transparente">
+                    <p:column headerText="Materia" style="font-weight: bold;">
+                        <h:outputText value="#{mat.cursoNombre}" style="color: #e67e22;" />
+                    </p:column>
+                    <p:column headerText="Dia">
+                        <h:outputText value="#{mat.dia}" style="font-weight: bold;" />
+                    </p:column>
+                    <p:column headerText="Hora">
+                        <h:outputText value="#{mat.hora}" />
+                    </p:column>
+                    <p:column headerText="Aula">
+                        <h:outputText value="#{mat.aula}" />
+                    </p:column>
+                    <p:column headerText="Docente">
+                        <h:outputText value="#{mat.docente}" />
+                    </p:column>
+                </p:dataTable>
+            </p:panel>
+
+            <div style="margin-top: 30px; text-align: center;">
+                <p:button value="Volver al Login" outcome="login" icon="pi pi-arrow-left" styleClass="ui-button-secondary" style="padding: 8px 25px; font-size: 1.1rem; border-radius: 6px;" />
+            </div>
+        </h:form>
+    </p:panel>
+</h:body>
+</html>
