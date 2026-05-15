@@ -84,9 +84,13 @@
                     <i class="pi pi-user" style="margin-right: 8px;"></i> Horario de: <h:outputText value="#{controller.estudianteBuscado.nombre}" />
                 </h3>
                 
-                <div style="background: rgba(255,255,255,0.7); padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; color: #34495e; font-size: 1.05rem;">
-                    <strong>Carrera:</strong> <h:outputText value="#{controller.estudianteBuscado.carrera}" /> | 
-                    <strong>Creditos matriculados:</strong> <h:outputText value="#{controller.estudianteBuscado.creditosMatriculados}" />
+                <div style="background: rgba(255,255,255,0.7); padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; color: #34495e; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>Carrera:</strong> <h:outputText value="#{controller.estudianteBuscado.carrera}" /> | 
+                        <strong>Creditos matriculados:</strong> <h:outputText value="#{controller.estudianteBuscado.creditosMatriculados}" />
+                    </div>
+                    
+                    <p:commandButton icon="pi pi-bell" action="#{controller.enviarHorarioPorCorreo()}" update="msgEstudiante" title="Enviar copia a mi correo" styleClass="ui-button-warning" style="border-radius: 50%; width: 40px; height: 40px;" />
                 </div>
 
                 <p:dataTable value="#{controller.horarioEstudianteBuscado}" var="mat" emptyMessage="Actualmente no tienes materias inscritas en el sistema." styleClass="tabla-transparente">
