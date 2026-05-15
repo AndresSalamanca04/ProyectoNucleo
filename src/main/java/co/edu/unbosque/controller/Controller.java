@@ -54,7 +54,6 @@ public class Controller implements Serializable {
     private String nombreNuevaVersion = "";
     private String nombreVersionSeleccionada = "";
 
-    // NUEVAS VARIABLES PARA EL PORTAL DE ESTUDIANTE
     private String busquedaEstudiante;
     private Estudiante estudianteBuscado;
     private List<Horario> horarioEstudianteBuscado;
@@ -86,7 +85,7 @@ public class Controller implements Serializable {
     }
 
     // ==========================================
-    // PORTAL DE ESTUDIANTES (SCRUM-107 y 108)
+    // PORTAL DE ESTUDIANTES (SCRUM-107, 108 y 110)
     // ==========================================
     public String irPortalEstudiante() {
         this.busquedaEstudiante = "";
@@ -105,7 +104,6 @@ public class Controller implements Serializable {
         
         String filtro = busquedaEstudiante.toLowerCase().trim();
         
-        // Filtro por nombre o documento
         estudianteBuscado = listaEstudiantes.stream()
             .filter(e -> e.getNombre().toLowerCase().contains(filtro) || e.getDocumento().equals(filtro))
             .findFirst()
@@ -118,6 +116,79 @@ public class Controller implements Serializable {
             horarioEstudianteBuscado = null;
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, "No encontrado", "No se encontro un estudiante con esos datos."));
         }
+    }
+
+    // NUEVO MÉTODO PARA ENVIAR HORARIO AL ESTUDIANTE
+    public void enviarHorarioPorCorreo() {
+        if (estudianteBuscado == null || estudianteBuscado.getCorreo() == null || estudianteBuscado.getCorreo().isEmpty()) {
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Aviso", "El estudiante no tiene un correo registrado en el sistema."));
+            return;
+        }
+
+        if (horarioEstudianteBuscado == null || horarioEstudianteBuscado.isEmpty()) {
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_WARN, "Aviso", "No hay materias inscritas para enviar."));
+            return;
+        }
+
+        String destinatario = estudianteBuscado.getCorreo();
+        String asunto = "Tu Horario Academico - Universidad El Bosque";
+
+        // Construir tabla HTML con el horario
+        StringBuilder html = new StringBuilder();
+        html.append("<div style='font-family: Arial, sans-serif; color: #333;'>");
+        html.append("<h2 style='color: #2980b9;'>Hola, ").append(estudianteBuscado.getNombre()).append("</h2>");
+        html.append("<p>Aqui tienes una copia del estado actual de tu horario academico:</p>");
+        
+        html.append("<table border='1' cellpadding='8' cellspacing='0' style='border-collapse: collapse; width: 100%; text-align: left;'>");
+        html.append("<tr style='background-color: #2c3e50; color: white;'>");
+        html.append("<th>Materia</th><th>Dia</th><th>Hora</th><th>Aula</th><th>Docente</th>");
+        html.append("</tr>");
+
+        for (Horario h : horarioEstudianteBuscado) {
+            html.append("<tr>");
+            html.append("<td><strong>").append(h.getCursoNombre()).append("</strong></td>");
+            html.append("<td>").append(h.getDia()).append("</td>");
+            html.append("<td>").append(h.getHora()).append("</td>");
+            html.append("<td>").append(h.getAula()).append("</td>");
+            html.append("<td>").append(h.getDocente()).append("</td>");
+            html.append("</tr>");
+        }
+        html.append("</table>");
+        html.append("<br><p>Si tienes alguna duda, acercate a la administracion.</p>");
+        html.append("<p style='color: #7f8c8d; font-size: 0.9em;'>Saludos,<br>Proyecto Nucleo Academico</p>");
+        html.append("</div>");
+
+        new Thread(() -> {
+            try {
+                final String remitente = "andresfelipesalamanca2004@gmail.com";
+                final String password = "ivhbsnlvaeuyxraf";
+
+                Properties props = new Properties();
+                props.put("mail.smtp.host", "smtp.gmail.com");
+                props.put("mail.smtp.port", "587");
+                props.put("mail.smtp.auth", "true");
+                props.put("mail.smtp.starttls.enable", "true");
+
+                Session session = Session.getInstance(props, new Authenticator() {
+                    @Override
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        return new PasswordAuthentication(remitente, password);
+                    }
+                });
+
+                Message message = new MimeMessage(session);
+                message.setFrom(new InternetAddress(remitente, "Proyecto Nucleo Academico"));
+                message.setSubject(asunto);
+                message.setContent(html.toString(), "text/html; charset=utf-8"); // Formato HTML
+                message.setRecipient(Message.RecipientType.TO, new InternetAddress(destinatario));
+
+                Transport.send(message);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+
+        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, "Enviado", "La copia del horario ha sido enviada al correo institucional."));
     }
 
     // ==========================================
